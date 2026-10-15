@@ -2,7 +2,7 @@
 #include <SFML/Graphics.hpp>
 
 
-
+// this is a test
 int main()
 {
     sf::Window window(sf::VideoMode({ 800, 600 }), "My window");
