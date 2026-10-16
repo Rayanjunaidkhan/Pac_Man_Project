@@ -4,6 +4,7 @@
 
 // this is a test
 // this is hamza
+//today is 10/16/26 and we r making pac man.
 int main()
 {
     sf::Window window(sf::VideoMode({ 800, 600 }), "My window");
