@@ -3,6 +3,8 @@
 #include <iostream>
 //ss
 // this is a test
+// this is hamza
+//today is 10/16/26 and we r making pac man.
 int main()
 {
     // make clock to see how much time elapsed
