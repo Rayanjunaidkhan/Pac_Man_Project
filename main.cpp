@@ -3,26 +3,23 @@
 #include <iostream>
 //ss
 // this is a test
-// this is hamza
-//today is 10/16/26 and we r making pac man.
 int main()
 {
+    // make clock to see how much time elapsed
+    sf::Clock clock;
     // preparing the window
     sf::RenderWindow window(sf::VideoMode({ 900, 900 }), "Pac Man Game");
     window.setFramerateLimit(60);
 
     // making background
 
-    sf::Texture BackGround("C:\\Users\\rayan\\Documents\\Coding projects\\Pac_Man_Project\\maze.bmp");
+    sf::Texture BackGround("maze.bmp");
     sf::Sprite BackGround_S(BackGround);
     BackGround_S.setScale(
         {
             float(window.getSize().x) / BackGround.getSize().x,
             float(window.getSize().y) / BackGround.getSize().y
         });
-
-
-
     // run the program as long as the window is open
     while (window.isOpen())
     {
