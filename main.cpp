@@ -82,6 +82,26 @@ int main()
         float rightLimit = 850;
         float topLimit = 50;
         float bottomLimit = 850;
+        //Dots
+        int score = 0;
+
+        //// har 2x2 block mein ek dot
+        //for (int i = 0; i < ROWS - 1; i += 2)
+        //{
+        //    for (int j = 0; j < COLS - 1; j += 2)
+        //    {
+        //        int a = i * COLS + j;          // top-left
+        //        int b = i * COLS + j + 1;      // top-right
+        //        int c = (i + 1) * COLS + j;    // bottom-left
+        //        int d = (i + 1) * COLS + j + 1; // bottom-right
+
+        //        // agar chaaron khali hain to dot lagao
+        //        if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
+        //        {
+        //            maze[a] = 2;
+        //        }
+        //    }
+        //}
 
         while (window.isOpen())
         {
@@ -137,6 +157,18 @@ int main()
                 pos.y = newY;
 
             Player1.setPosition(pos);
+            /*for (int r = 0; r < ROWS - 1; r += 2)
+                for (int c = 0; c < COLS - 1; c += 2)
+                    if (maze[r * COLS + c] == 2)
+                    {
+                        float dx = pos.x - (c + 1) * (float)CELL;
+                        float dy = pos.y - (r + 1) * (float)CELL;
+                        if (dx * dx + dy * dy < 15.f * 15.f)
+                        {
+                            maze[r * COLS + c] = 0;
+                            score++;
+                        }
+                    }*/
 
             // 3. DRAW
             window.clear();
@@ -156,8 +188,21 @@ int main()
                     }
                 }
             }
+            //draw dots
+            /*sf::CircleShape dot(3.f);
+            dot.setFillColor(sf::Color::White);
+
+            for (int r = 0; r < ROWS - 1; r += 2)
+                for (int c = 0; c < COLS - 1; c += 2)
+                    if (maze[r * COLS + c] == 2)
+                    {
+                        dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
+                        window.draw(dot);
+                    }
+            */
 
             window.draw(Player1);   // last, so he is on top
             window.display();
+            
         }
  }
