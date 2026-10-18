@@ -45,164 +45,184 @@ int maze[COLS * ROWS] = {
 };
 int main()
 {
-        // window
-        sf::RenderWindow window(sf::VideoMode({ 900, 900 }), "Pac Man Game");
-        window.setFramerateLimit(60);
+    // window
+    sf::RenderWindow window(sf::VideoMode({ 900, 900 }), "Pac Man Game");
+    window.setFramerateLimit(60);
 
-        // maze background
-        sf::Texture BackGround("maze.bmp");
-        sf::Sprite BackGround_S(BackGround);
-        BackGround_S.setScale(
-            {
-                float(window.getSize().x) / BackGround.getSize().x,
-                float(window.getSize().y) / BackGround.getSize().y
-            });
-
-        // player
-        sf::Texture Player1_texA("Player1_TextureA.bmp");
-        sf::Sprite Player1(Player1_texA);
-        Player1.setScale(
-            {
-                40 / float(Player1_texA.getSize().x),
-                40 / float(Player1_texA.getSize().y)
-            });
-        float player1_width = Player1.getLocalBounds().size.x;
-        float player1_height = Player1.getLocalBounds().size.y;
-        Player1.setOrigin({ player1_width / 2, player1_height / 2 });
-        Player1.setPosition({ 80, 830 });
-
-        // variables (each declared ONCE)
-        sf::Clock clock;
-        float speed = 100;       // pixels per second
-        float half = 20;         // half of Pac-Man's size (40 / 2)
-        char direction = ' ';
-
-        // edges of the open area (from your array)
-        float leftLimit = 50;
-        float rightLimit = 850;
-        float topLimit = 50;
-        float bottomLimit = 850;
-        //Dots
-        int score = 0;
-
-        //// har 2x2 block mein ek dot
-        //for (int i = 0; i < ROWS - 1; i += 2)
-        //{
-        //    for (int j = 0; j < COLS - 1; j += 2)
-        //    {
-        //        int a = i * COLS + j;          // top-left
-        //        int b = i * COLS + j + 1;      // top-right
-        //        int c = (i + 1) * COLS + j;    // bottom-left
-        //        int d = (i + 1) * COLS + j + 1; // bottom-right
-
-        //        // agar chaaron khali hain to dot lagao
-        //        if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
-        //        {
-        //            maze[a] = 2;
-        //        }
-        //    }
-        //}
-
-        while (window.isOpen())
+    // maze background
+    sf::Texture BackGround("maze.bmp");
+    sf::Sprite BackGround_S(BackGround);
+    BackGround_S.setScale(
         {
-            // 1. INPUT
-            while (const std::optional event = window.pollEvent())
+            float(window.getSize().x) / BackGround.getSize().x,
+            float(window.getSize().y) / BackGround.getSize().y
+        });
+
+    // player
+    sf::Texture Player1_texA("Player1_TextureA.bmp");
+    sf::Texture Player1_texB("Player1_TextureB.bmp");
+    sf::Sprite Player1(Player1_texA);
+    Player1.setScale(
+        {
+            40 / float(Player1_texA.getSize().x),
+            40 / float(Player1_texA.getSize().y)
+        });
+    float player1_width = Player1.getLocalBounds().size.x;
+    float player1_height = Player1.getLocalBounds().size.y;
+    Player1.setOrigin({ player1_width / 2, player1_height / 2 });
+    Player1.setPosition({ 80, 830 });
+
+    // variables (each declared ONCE)
+    sf::Clock clock, timer_for_texture_change;
+    float speed = 100;       // pixels per second
+    float half = 20;         // half of Pac-Man's size (40 / 2)
+    char direction = ' ';
+    bool has_the_run_started = false, current_texture = false;
+    // edges of the open area (from your array)
+    float leftLimit = 50;
+    float rightLimit = 850;
+    float topLimit = 50;
+    float bottomLimit = 850;
+    //Dots
+    int score = 0;
+
+    //// har 2x2 block mein ek dot
+    for (int i = 0; i < ROWS - 1; i += 2)
+    {
+        for (int j = 0; j < COLS - 1; j += 2)
+        {
+            int a = i * COLS + j;          // top-left
+            int b = i * COLS + j + 1;      // top-right
+            int c = (i + 1) * COLS + j;    // bottom-left
+            int d = (i + 1) * COLS + j + 1; // bottom-right
+
+            // agar chaaron khali hain to dot lagao
+            if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
             {
-                if (event->is<sf::Event::Closed>())
-                    window.close();
+                maze[a] = 2;
+            }
+        }
+    }
+
+    while (window.isOpen())
+    {
+        // 1. INPUT
+        while (const std::optional event = window.pollEvent())
+        {
+            if (event->is<sf::Event::Closed>())
+                window.close();
+        }
+
+        // 2. UPDATE
+        float dt = clock.restart().asSeconds();
+
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
+            direction = 'U';
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
+            direction = 'L';
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
+            direction = 'D';
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
+            direction = 'R';
+
+        // where he is now, and where he WANTS to go
+        sf::Vector2f pos = Player1.getPosition();
+        float newX = pos.x;
+        float newY = pos.y;
+
+        if (direction == 'U')
+        {
+            Player1.setRotation(sf::degrees(270));
+            newY -= speed * dt;
+            has_the_run_started = true;
+        }
+        else if (direction == 'L')
+        {
+            Player1.setRotation(sf::degrees(180));
+            newX -= speed * dt;
+            has_the_run_started = true;
+        }
+        else if (direction == 'D')
+        {
+            Player1.setRotation(sf::degrees(90));
+            newY += speed * dt;
+            has_the_run_started = true;
+        }
+        else if (direction == 'R')
+        {
+            Player1.setRotation(sf::degrees(360));
+            newX += speed * dt;
+            has_the_run_started = true;
+        }
+
+
+        if (has_the_run_started == true)
+        {
+            // write code for changing of texture
+            if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
+            {
+                current_texture = !current_texture;
+                if (current_texture)
+                    Player1.setTexture(Player1_texA);
+                else
+                    Player1.setTexture(Player1_texB);
+                timer_for_texture_change.restart();
             }
 
-            // 2. UPDATE
-            float dt = clock.restart().asSeconds();
+        }
+        // only move if the wanted spot is inside the limits
+        if (newX - half >= leftLimit && newX + half <= rightLimit)
+            pos.x = newX;
+        if (newY - half >= topLimit && newY + half <= bottomLimit)
+            pos.y = newY;
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
-                direction = 'U';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
-                direction = 'L';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
-                direction = 'D';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
-                direction = 'R';
-
-            // where he is now, and where he WANTS to go
-            sf::Vector2f pos = Player1.getPosition();
-            float newX = pos.x;
-            float newY = pos.y;
-
-            if (direction == 'U')
-            {
-                Player1.setRotation(sf::degrees(90));
-                newY -= speed * dt;
-            }
-            else if (direction == 'L')
-            {
-                Player1.setRotation(sf::degrees(360));
-                newX -= speed * dt;
-            }
-            else if (direction == 'D')
-            {
-                Player1.setRotation(sf::degrees(270));
-                newY += speed * dt;
-            }
-            else if (direction == 'R')
-            {
-                Player1.setRotation(sf::degrees(180));
-                newX += speed * dt;
-            }
-
-            // only move if the wanted spot is inside the limits
-            if (newX - half >= leftLimit && newX + half <= rightLimit)
-                pos.x = newX;
-            if (newY - half >= topLimit && newY + half <= bottomLimit)
-                pos.y = newY;
-
-            Player1.setPosition(pos);
-            /*for (int r = 0; r < ROWS - 1; r += 2)
-                for (int c = 0; c < COLS - 1; c += 2)
-                    if (maze[r * COLS + c] == 2)
-                    {
-                        float dx = pos.x - (c + 1) * (float)CELL;
-                        float dy = pos.y - (r + 1) * (float)CELL;
-                        if (dx * dx + dy * dy < 15.f * 15.f)
-                        {
-                            maze[r * COLS + c] = 0;
-                            score++;
-                        }
-                    }*/
-
-            // 3. DRAW
-            window.clear();
-            window.draw(BackGround_S);
-
-            // TEST: red squares over wall cells (delete when walls are finished)
-            sf::RectangleShape box({ float(CELL), float(CELL) });
-            box.setFillColor(sf::Color(255, 0, 0, 120));
-            for (int row = 0; row < ROWS; row++)
-            {
-                for (int col = 0; col < COLS; col++)
+        Player1.setPosition(pos);
+        for (int r = 0; r < ROWS - 1; r += 2)
+            for (int c = 0; c < COLS - 1; c += 2)
+                if (maze[r * COLS + c] == 2)
                 {
-                    if (maze[row * COLS + col] == 1)
+                    float dx = pos.x - (c + 1) * (float)CELL;
+                    float dy = pos.y - (r + 1) * (float)CELL;
+                    if (dx * dx + dy * dy < 15.f * 15.f)
                     {
-                        box.setPosition({ float(col * CELL), float(row * CELL) });
-                        window.draw(box);
+                        maze[r * COLS + c] = 0;
+                        score++;
                     }
                 }
+
+                // 3. DRAW
+        window.clear();
+        window.draw(BackGround_S);
+
+        // TEST: red squares over wall cells (delete when walls are finished)
+        sf::RectangleShape box({ float(CELL), float(CELL) });
+        box.setFillColor(sf::Color(255, 0, 0, 120));
+        for (int row = 0; row < ROWS; row++)
+        {
+            for (int col = 0; col < COLS; col++)
+            {
+                if (maze[row * COLS + col] == 1)
+                {
+                    box.setPosition({ float(col * CELL), float(row * CELL) });
+                    window.draw(box);
+                }
             }
-            //draw dots
-            /*sf::CircleShape dot(3.f);
-            dot.setFillColor(sf::Color::White);
-
-            for (int r = 0; r < ROWS - 1; r += 2)
-                for (int c = 0; c < COLS - 1; c += 2)
-                    if (maze[r * COLS + c] == 2)
-                    {
-                        dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
-                        window.draw(dot);
-                    }
-            */
-
-            window.draw(Player1);   // last, so he is on top
-            window.display();
-            
         }
- }
+        //draw dots
+        sf::CircleShape dot(3.f);
+        dot.setFillColor(sf::Color::White);
+
+        for (int r = 0; r < ROWS - 1; r += 2)
+            for (int c = 0; c < COLS - 1; c += 2)
+                if (maze[r * COLS + c] == 2)
+                {
+                    dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
+                    window.draw(dot);
+                }
+        
+
+        window.draw(Player1);   // last, so he is on top
+        window.display();
+
+    }
+}
