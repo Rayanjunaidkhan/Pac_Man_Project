@@ -59,7 +59,7 @@ int main()
         });
 
     // player
-    sf::Texture Player1_texA("Player1_TextureA.bmp");
+    sf::Texture Player1_texA("Player1_TextureA.png");
     sf::Texture Player1_texB("Player1_TextureB.bmp");
     sf::Sprite Player1(Player1_texA);
     Player1.setScale(
@@ -210,7 +210,7 @@ int main()
         }
         //draw dots
         sf::CircleShape dot(3.f);
-        dot.setFillColor(sf::Color::White);
+        dot.setFillColor(sf::Color::Yellow);
 
         for (int r = 0; r < ROWS - 1; r += 2)
             for (int c = 0; c < COLS - 1; c += 2)
