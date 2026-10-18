@@ -83,17 +83,17 @@ int main()
 
     // player
     sf::Texture Player1_texA("Player1_TextureA.png");
-    sf::Texture Player1_texB("Player1_TextureB.bmp");
+    sf::Texture Player1_texB("Player1_TextureB.png");
     sf::Sprite Player1(Player1_texA);
     Player1.setScale(
         {
-            40 / float(Player1_texA.getSize().x),
-            40 / float(Player1_texA.getSize().y)
+            50 / float(Player1_texA.getSize().x),
+            50 / float(Player1_texA.getSize().y)
         });
     float player1_width = Player1.getLocalBounds().size.x;
     float player1_height = Player1.getLocalBounds().size.y;
     Player1.setOrigin({ player1_width / 2, player1_height / 2 });
-    Player1.setPosition({ 80, 830 });
+    Player1.setPosition({ 70, 830 });
 
     // variables (each declared ONCE)
     sf::Clock clock, timer_for_texture_change;
