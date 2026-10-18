@@ -77,7 +77,7 @@ int main()
     float speed = 100;       // pixels per second
     float half = 20;         // half of Pac-Man's size (40 / 2)
     char direction = ' ';
-
+    bool has_the_run_started = false, current_texture = false;
     // edges of the open area (from your array)
     float leftLimit = 50;
     float rightLimit = 850;
@@ -132,25 +132,44 @@ int main()
 
         if (direction == 'U')
         {
-            Player1.setRotation(sf::degrees(90));
+            Player1.setRotation(sf::degrees(270));
             newY -= speed * dt;
+            has_the_run_started = true;
         }
         else if (direction == 'L')
         {
-            Player1.setRotation(sf::degrees(360));
+            Player1.setRotation(sf::degrees(180));
             newX -= speed * dt;
+            has_the_run_started = true;
         }
         else if (direction == 'D')
         {
-            Player1.setRotation(sf::degrees(270));
+            Player1.setRotation(sf::degrees(90));
             newY += speed * dt;
+            has_the_run_started = true;
         }
         else if (direction == 'R')
         {
-            Player1.setRotation(sf::degrees(180));
+            Player1.setRotation(sf::degrees(360));
             newX += speed * dt;
+            has_the_run_started = true;
         }
 
+
+        if (has_the_run_started == true)
+        {
+            // write code for changing of texture
+            if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
+            {
+                current_texture = !current_texture;
+                if (current_texture)
+                    Player1.setTexture(Player1_texA);
+                else
+                    Player1.setTexture(Player1_texB);
+                timer_for_texture_change.restart();
+            }
+
+        }
         // only move if the wanted spot is inside the limits
         if (newX - half >= leftLimit && newX + half <= rightLimit)
             pos.x = newX;
