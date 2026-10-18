@@ -95,12 +95,27 @@ int main()
     Player1.setOrigin({ player1_width / 2, player1_height / 2 });
     Player1.setPosition({ 70, 830 });
 
+
+    // this makes the pasue menu screen
+    sf::RectangleShape overlay({ 900, 900 });
+    overlay.setFillColor(sf::Color(0, 0, 0, 150));
+
+    sf::Font font;
+    if (!font.openFromFile("pixel_font.otf"))
+        return -1;
+
+    sf::Text paused_text(font, "GAME PAUSED", 100);
+    paused_text.setPosition({ 230, 330 });
+    sf::Text paused_text_additional(font, "Press Esc or P to continue", 30);
+    paused_text_additional.setPosition({290, 480});
+
     // variables (each declared ONCE)
     sf::Clock clock, timer_for_texture_change;
     float speed = 100;       // pixels per second
     float half = 15;         // half of Pac-Man's size (40 / 2) //another change here half=15 from now to make pac-man movement checking defined.
     char direction = ' ';
     bool has_the_run_started = false, current_texture = false;
+    bool is_game_paused = false;
     // edges of the open area (from your array)
    //I, Hmzaa is commenting them coz they are here just to define whole maze as a square box and pac man can't go outside but i a using function calling istead of it.
    /* float leftLimit = 50;
@@ -128,6 +143,10 @@ int main()
         }
     }
 
+
+    // this makes sure that holding esc dosent make pause screen flicker
+    window.setKeyRepeatEnabled(false);
+
     while (window.isOpen())
     {
         // 1. INPUT
@@ -135,117 +154,130 @@ int main()
         {
             if (event->is<sf::Event::Closed>())
                 window.close();
-        }
-
-        // 2. UPDATE
-        float dt = clock.restart().asSeconds();
-
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
-            direction = 'U';
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
-            direction = 'L';
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
-            direction = 'D';
-        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
-            direction = 'R';
-
-        // where he is now, and where he WANTS to go
-        sf::Vector2f pos = Player1.getPosition();
-        float newX = pos.x;
-        float newY = pos.y;
-
-        if (direction == 'U')
-        {
-            Player1.setRotation(sf::degrees(270));
-            newY -= speed * dt;
-            has_the_run_started = true;
-        }
-        else if (direction == 'L')
-        {
-            Player1.setRotation(sf::degrees(180));
-            newX -= speed * dt;
-            has_the_run_started = true;
-        }
-        else if (direction == 'D')
-        {
-            Player1.setRotation(sf::degrees(90));
-            newY += speed * dt;
-            has_the_run_started = true;
-        }
-        else if (direction == 'R')
-        {
-            Player1.setRotation(sf::degrees(360));
-            newX += speed * dt;
-            has_the_run_started = true;
-        }
-
-
-        if (has_the_run_started == true)
-        {
-            // write code for changing of texture
-            if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
+            if (event->is<sf::Event::KeyPressed>())
             {
-                current_texture = !current_texture;
-                if (current_texture)
-                    Player1.setTexture(Player1_texA);
-                else
-                    Player1.setTexture(Player1_texB);
-                timer_for_texture_change.restart();
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::P))
+                    is_game_paused = !is_game_paused;
+            }
+        }
+        // 2. UPDATE
+        if (!is_game_paused)
+        {
+            float dt = clock.restart().asSeconds();
+
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
+                direction = 'U';
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
+                direction = 'L';
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
+                direction = 'D';
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
+                direction = 'R';
+
+            // where he is now, and where he WANTS to go
+            sf::Vector2f pos = Player1.getPosition();
+            float newX = pos.x;
+            float newY = pos.y;
+
+            if (direction == 'U')
+            {
+                Player1.setRotation(sf::degrees(270));
+                newY -= speed * dt;
+                has_the_run_started = true;
+            }
+            else if (direction == 'L')
+            {
+                Player1.setRotation(sf::degrees(180));
+                newX -= speed * dt;
+                has_the_run_started = true;
+            }
+            else if (direction == 'D')
+            {
+                Player1.setRotation(sf::degrees(90));
+                newY += speed * dt;
+                has_the_run_started = true;
+            }
+            else if (direction == 'R')
+            {
+                Player1.setRotation(sf::degrees(360));
+                newX += speed * dt;
+                has_the_run_started = true;
             }
 
-        }
-        // only move if the wanted spot is inside the limits
-        if (canMoveTo(newX, pos.y, half))
-            pos.x = newX;
-        if (canMoveTo(pos.x, newY, half))
-            pos.y = newY;
 
-        Player1.setPosition(pos);
-        for (int r = 0; r < ROWS - 1; r += 2)
-            for (int c = 0; c < COLS - 1; c += 2)
-                if (maze[r * COLS + c] == 2)
+            if (has_the_run_started == true)
+            {
+                // write code for changing of texture
+                if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
                 {
-                    float dx = pos.x - (c + 1) * (float)CELL;
-                    float dy = pos.y - (r + 1) * (float)CELL;
-                    if (dx * dx + dy * dy < 15.f * 15.f)
+                    current_texture = !current_texture;
+                    if (current_texture)
+                        Player1.setTexture(Player1_texA);
+                    else
+                        Player1.setTexture(Player1_texB);
+                    timer_for_texture_change.restart();
+                }
+
+            }
+            // only move if the wanted spot is inside the limits
+            if (canMoveTo(newX, pos.y, half))
+                pos.x = newX;
+            if (canMoveTo(pos.x, newY, half))
+                pos.y = newY;
+
+            Player1.setPosition(pos);
+            for (int r = 0; r < ROWS - 1; r += 2)
+                for (int c = 0; c < COLS - 1; c += 2)
+                    if (maze[r * COLS + c] == 2)
                     {
-                        maze[r * COLS + c] = 0;
-                        score++;
+                        float dx = pos.x - (c + 1) * (float)CELL;
+                        float dy = pos.y - (r + 1) * (float)CELL;
+                        if (dx * dx + dy * dy < 15.f * 15.f)
+                        {
+                            maze[r * COLS + c] = 0;
+                            score++;
+                        }
+                    }
+
+            // 3. DRAW
+        }
+            window.clear();
+            window.draw(BackGround_S);
+
+            // TEST: red squares over wall cells (delete when walls are finished)
+            sf::RectangleShape box({ float(CELL), float(CELL) });
+            box.setFillColor(sf::Color(255, 0, 0, 120));
+            for (int row = 0; row < ROWS; row++)
+            {
+                for (int col = 0; col < COLS; col++)
+                {
+                    if (maze[row * COLS + col] == 1)
+                    {
+                        box.setPosition({ float(col * CELL), float(row * CELL) });
+                        window.draw(box);
                     }
                 }
-
-                // 3. DRAW
-        window.clear();
-        window.draw(BackGround_S);
-
-        // TEST: red squares over wall cells (delete when walls are finished)
-        sf::RectangleShape box({ float(CELL), float(CELL) });
-        box.setFillColor(sf::Color(255, 0, 0, 120));
-        for (int row = 0; row < ROWS; row++)
-        {
-            for (int col = 0; col < COLS; col++)
-            {
-                if (maze[row * COLS + col] == 1)
-                {
-                    box.setPosition({ float(col * CELL), float(row * CELL) });
-                    window.draw(box);
-                }
             }
-        }
-        //draw dots
-        sf::CircleShape dot(3.f);
-        dot.setFillColor(sf::Color::Yellow);
+            //draw dots
+            sf::CircleShape dot(3.f);
+            dot.setFillColor(sf::Color::Yellow);
 
-        for (int r = 0; r < ROWS - 1; r += 2)
-            for (int c = 0; c < COLS - 1; c += 2)
-                if (maze[r * COLS + c] == 2)
-                {
-                    dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
-                    window.draw(dot);
-                }
-        
+            for (int r = 0; r < ROWS - 1; r += 2)
+                for (int c = 0; c < COLS - 1; c += 2)
+                    if (maze[r * COLS + c] == 2)
+                    {
+                        dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
+                        window.draw(dot);
+                    }
 
-        window.draw(Player1);   // last, so he is on top
+
+            window.draw(Player1);   // last, so he is on top
+            if (is_game_paused)
+            {
+                window.draw(overlay);
+                window.draw(paused_text);
+                window.draw(paused_text_additional);
+            }
         window.display();
 
     }
