@@ -50,7 +50,7 @@ int main()
     window.setFramerateLimit(60);
 
     // maze background
-    sf::Texture BackGround("maze.bmp");
+    sf::Texture BackGround("maze_revised.bmp");
     sf::Sprite BackGround_S(BackGround);
     BackGround_S.setScale(
         {
