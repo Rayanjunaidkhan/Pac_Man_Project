@@ -69,17 +69,17 @@ bool canMoveTo(float x, float y, float half)
 int main()
 {
     // window
-    sf::RenderWindow window(sf::VideoMode({ 900, 900 }), "Pac Man Game");
+    sf::RenderWindow window(sf::VideoMode({ 1200, 900 }), "Pac Man Game");
     window.setFramerateLimit(60);
 
     // maze background
     sf::Texture BackGround("maze_revised.bmp");
     sf::Sprite BackGround_S(BackGround);
-    BackGround_S.setScale(
-        {
-            float(window.getSize().x) / BackGround.getSize().x,
-            float(window.getSize().y) / BackGround.getSize().y
-        });
+    //BackGround_S.setScale(
+    //    {
+    //        float(window.getSize().x) / BackGround.getSize().x,
+    //        float(window.getSize().y) / BackGround.getSize().y
+    //    });
 
     // player
     sf::Texture Player1_texA("Player1_TextureA.png");
@@ -108,6 +108,25 @@ int main()
     paused_text.setPosition({ 230, 330 });
     sf::Text paused_text_additional(font, "Press Esc or P to continue", 30);
     paused_text_additional.setPosition({290, 480});
+
+
+
+    // making the sidebar which tells game name and score
+    sf::Texture Game_Banner("Game_banner.jpg");
+    sf::Sprite SideScreen(Game_Banner);
+    SideScreen.setPosition({ 900,0 });
+    SideScreen.setScale({ 300.f / Game_Banner.getSize().x, 900.f / Game_Banner.getSize().y });
+    sf::Text Game_Title(font, "PACMAN", 100);
+    Game_Title.setFillColor(sf::Color::Yellow);
+    Game_Title.setPosition({ 910, 200 });
+
+    sf::Text Score_counter(font, "Score: ", 50);
+    Score_counter.setFillColor(sf::Color::Red);
+    Score_counter.setPosition({ 950,300 });
+
+    sf::Text Score_value(font, "0", 50);
+    Score_value.setFillColor(sf::Color::Red);
+    Score_value.setPosition({ 1080, 300 });
 
     // variables (each declared ONCE)
     sf::Clock clock, timer_for_texture_change;
@@ -165,13 +184,13 @@ int main()
         {
             float dt = clock.restart().asSeconds();
 
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
                 direction = 'U';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
                 direction = 'L';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
                 direction = 'D';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
+            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
                 direction = 'R';
 
             // where he is now, and where he WANTS to go
@@ -235,14 +254,47 @@ int main()
                         if (dx * dx + dy * dy < 15.f * 15.f)
                         {
                             maze[r * COLS + c] = 0;
-                            score++;
+                            score += 10;
                         }
                     }
 
             // 3. DRAW
         }
-            window.clear();
-            window.draw(BackGround_S);
+
+        // take the current score and store it in score value
+        char buff[12],digits[12];
+        int length = 0;
+        int n = score, d = 0;
+        if (n == 0)
+        {
+            digits[d] = '0';
+            d++;
+        }
+        while (n > 0)
+        {
+            digits[d] = '0' + n % 10;
+            d++;
+            n /= 10;
+        }
+        while (d > 0)
+        {
+            d--;
+            buff[length] = digits[d];
+            length++;
+        }
+        buff[length] = '\0';
+        Score_value.setString(buff);
+
+
+
+
+         window.clear();
+         window.draw(BackGround_S);
+         window.draw(SideScreen);
+         window.draw(Game_Title);
+         window.draw(Score_counter);
+         window.draw(Score_value);
+            
 
             // TEST: red squares over wall cells (delete when walls are finished)
             sf::RectangleShape box({ float(CELL), float(CELL) });
