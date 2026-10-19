@@ -1,6 +1,26 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
+struct Player
+{
+    sf::Sprite sprite;
+    int lives = 1;
+    int score = 0;
+    int current_state = 0; // 0 for normal, 1 for eating ghost mode, 2 for faster speed
+
+    Player(const sf::Texture& tex) : sprite(tex) {}
+};
+
+struct Ghost
+{
+    sf::Sprite sprite;
+    int state = 0; // 0  is normal, 1 is scared
+    Ghost(const sf::Texture& tex) : sprite(tex) {}
+};
+
+
+void place_dots();
+
 // making constants coz these are fixed mapping values of game.
 const int CELL = 25;   // size of one square, in pixels
 const int COLS = 36;   // how many squares across
@@ -84,17 +104,26 @@ int main()
     // player
     sf::Texture Player1_texA("Player1_TextureA.png");
     sf::Texture Player1_texB("Player1_TextureB.png");
-    sf::Sprite Player1(Player1_texA);
-    Player1.setScale(
+    Player Player1(Player1_texA);
+    Player1.sprite.setScale(
         {
             50 / float(Player1_texA.getSize().x),
             50 / float(Player1_texA.getSize().y)
         });
-    float player1_width = Player1.getLocalBounds().size.x;
-    float player1_height = Player1.getLocalBounds().size.y;
-    Player1.setOrigin({ player1_width / 2, player1_height / 2 });
-    Player1.setPosition({ 70, 830 });
+    float player1_width = Player1.sprite.getLocalBounds().size.x;
+    float player1_height = Player1.sprite.getLocalBounds().size.y;
+    Player1.sprite.setOrigin({ player1_width / 2, player1_height / 2 });
+    Player1.sprite.setPosition({ 70, 830 });
 
+    // this code is for making the ghost
+        // this code is for making red ghost blinky
+    sf::Texture Blinky_tex("red_ghost.png");
+    Ghost Blinky(Blinky_tex);
+    Blinky.sprite.setScale({
+        50 / float(Blinky_tex.getSize().x),
+        50 / float(Blinky_tex.getSize().y)
+        });
+    Blinky.sprite.setPosition({ 400,400 });
 
     // this makes the pasue menu screen
     sf::RectangleShape overlay({ 900, 900 });
@@ -107,7 +136,7 @@ int main()
     sf::Text paused_text(font, "GAME PAUSED", 100);
     paused_text.setPosition({ 230, 330 });
     sf::Text paused_text_additional(font, "Press Esc or P to continue", 30);
-    paused_text_additional.setPosition({290, 480});
+    paused_text_additional.setPosition({ 290, 480 });
 
 
 
@@ -128,6 +157,27 @@ int main()
     Score_value.setFillColor(sf::Color::Red);
     Score_value.setPosition({ 1080, 300 });
 
+    sf::Text Lives_counter(font, "Lives Left: ", 50);
+    Lives_counter.setFillColor(sf::Color::Red);
+    Lives_counter.setPosition({ 920, 350 });
+
+    sf::Text Lives_value(font, "0", 50);
+    Lives_value.setFillColor(sf::Color::Red);
+    Lives_value.setPosition({ 1130,350 });
+
+
+    // Making the game over screen
+    sf::RectangleShape game_over_screen({ 1200,900 });
+    game_over_screen.setFillColor(sf::Color(0, 0, 0, 150));
+
+    sf::Text game_over_text(font, "GAME OVER", 200);
+    game_over_text.setPosition({ 200,300 });
+
+    sf::Text game_over_text_additional(font, "Press Space to start again", 50);
+    game_over_text_additional.setPosition({ 330, 500 });
+
+
+
     // variables (each declared ONCE)
     sf::Clock clock, timer_for_texture_change;
     float speed = 100;       // pixels per second
@@ -142,25 +192,9 @@ int main()
     float topLimit = 50;
     float bottomLimit = 850;*/
     //Dots
-    int score = 0;
 
     //// har 2x2 block mein ek dot
-    for (int i = 0; i < ROWS - 1; i += 2)
-    {
-        for (int j = 0; j < COLS - 1; j += 2)
-        {
-            int a = i * COLS + j;          // top-left
-            int b = i * COLS + j + 1;      // top-right
-            int c = (i + 1) * COLS + j;    // bottom-left
-            int d = (i + 1) * COLS + j + 1; // bottom-right
-
-            // agar chaaron khali hain to dot lagao
-            if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
-            {
-                maze[a] = 2;
-            }
-        }
-    }
+    place_dots();
 
 
     // this makes sure that holding esc dosent make pause screen flicker
@@ -180,121 +214,147 @@ int main()
             }
         }
         // 2. UPDATE
-        if (!is_game_paused)
+        if (Player1.lives > 0)
         {
-            float dt = clock.restart().asSeconds();
-
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
-                direction = 'U';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
-                direction = 'L';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
-                direction = 'D';
-            else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
-                direction = 'R';
-
-            // where he is now, and where he WANTS to go
-            sf::Vector2f pos = Player1.getPosition();
-            float newX = pos.x;
-            float newY = pos.y;
-
-            if (direction == 'U')
+            if (!is_game_paused)
             {
-                Player1.setRotation(sf::degrees(270));
-                newY -= speed * dt;
-                has_the_run_started = true;
-            }
-            else if (direction == 'L')
-            {
-                Player1.setRotation(sf::degrees(180));
-                newX -= speed * dt;
-                has_the_run_started = true;
-            }
-            else if (direction == 'D')
-            {
-                Player1.setRotation(sf::degrees(90));
-                newY += speed * dt;
-                has_the_run_started = true;
-            }
-            else if (direction == 'R')
-            {
-                Player1.setRotation(sf::degrees(360));
-                newX += speed * dt;
-                has_the_run_started = true;
-            }
+                float dt = clock.restart().asSeconds();
 
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
+                    direction = 'U';
+                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
+                    direction = 'L';
+                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
+                    direction = 'D';
+                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
+                    direction = 'R';
 
-            if (has_the_run_started == true)
-            {
-                // write code for changing of texture
-                if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
+                // where he is now, and where he WANTS to go
+                sf::Vector2f pos = Player1.sprite.getPosition();
+                float newX = pos.x;
+                float newY = pos.y;
+
+                if (direction == 'U')
                 {
-                    current_texture = !current_texture;
-                    if (current_texture)
-                        Player1.setTexture(Player1_texA);
-                    else
-                        Player1.setTexture(Player1_texB);
-                    timer_for_texture_change.restart();
+                    Player1.sprite.setRotation(sf::degrees(270));
+                    newY -= speed * dt;
+                    has_the_run_started = true;
+                }
+                else if (direction == 'L')
+                {
+                    Player1.sprite.setRotation(sf::degrees(180));
+                    newX -= speed * dt;
+                    has_the_run_started = true;
+                }
+                else if (direction == 'D')
+                {
+                    Player1.sprite.setRotation(sf::degrees(90));
+                    newY += speed * dt;
+                    has_the_run_started = true;
+                }
+                else if (direction == 'R')
+                {
+                    Player1.sprite.setRotation(sf::degrees(360));
+                    newX += speed * dt;
+                    has_the_run_started = true;
                 }
 
-            }
-            // only move if the wanted spot is inside the limits
-            if (canMoveTo(newX, pos.y, half))
-                pos.x = newX;
-            if (canMoveTo(pos.x, newY, half))
-                pos.y = newY;
 
-            Player1.setPosition(pos);
-            for (int r = 0; r < ROWS - 1; r += 2)
-                for (int c = 0; c < COLS - 1; c += 2)
-                    if (maze[r * COLS + c] == 2)
+                if (has_the_run_started == true)
+                {
+                    // write code for changing of texture
+                    if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
                     {
-                        float dx = pos.x - (c + 1) * (float)CELL;
-                        float dy = pos.y - (r + 1) * (float)CELL;
-                        if (dx * dx + dy * dy < 15.f * 15.f)
-                        {
-                            maze[r * COLS + c] = 0;
-                            score += 10;
-                        }
+                        current_texture = !current_texture;
+                        if (current_texture)
+                            Player1.sprite.setTexture(Player1_texA);
+                        else
+                            Player1.sprite.setTexture(Player1_texB);
+                        timer_for_texture_change.restart();
                     }
 
-            // 3. DRAW
-        }
+                }
+                // only move if the wanted spot is inside the limits
+                if (canMoveTo(newX, pos.y, half))
+                    pos.x = newX;
+                if (canMoveTo(pos.x, newY, half))
+                    pos.y = newY;
 
-        // take the current score and store it in score value
-        char buff[12],digits[12];
-        int length = 0;
-        int n = score, d = 0;
-        if (n == 0)
-        {
-            digits[d] = '0';
-            d++;
-        }
-        while (n > 0)
-        {
-            digits[d] = '0' + n % 10;
-            d++;
-            n /= 10;
-        }
-        while (d > 0)
-        {
-            d--;
-            buff[length] = digits[d];
-            length++;
-        }
-        buff[length] = '\0';
-        Score_value.setString(buff);
+                Player1.sprite.setPosition(pos);
+                for (int r = 0; r < ROWS - 1; r += 2)
+                    for (int c = 0; c < COLS - 1; c += 2)
+                        if (maze[r * COLS + c] == 2)
+                        {
+                            float dx = pos.x - (c + 1) * (float)CELL;
+                            float dy = pos.y - (r + 1) * (float)CELL;
+                            if (dx * dx + dy * dy < 15.f * 15.f)
+                            {
+                                maze[r * COLS + c] = 0;
+                                Player1.score += 10;
+                            }
+                        }
+
+                // 3. DRAW
+            }
+
+            // take the current score and store it in score value
+            char buff[12], digits[12];
+            int length = 0;
+            int n = Player1.score, d = 0;
+            if (n == 0)
+            {
+                digits[d] = '0';
+                d++;
+            }
+            while (n > 0)
+            {
+                digits[d] = '0' + n % 10;
+                d++;
+                n /= 10;
+            }
+            while (d > 0)
+            {
+                d--;
+                buff[length] = digits[d];
+                length++;
+            }
+            buff[length] = '\0';
+            Score_value.setString(buff);
+
+            //take current lives and put then in lives value
+            char buff2[12], digits2[12];
+            int length2 = 0;
+            int n2 = Player1.lives, d2 = 0;
+            if (n2 == 0)
+            {
+                digits2[d2] = '0';
+                d2++;
+            }
+            while (n2 > 0)
+            {
+                digits2[d2] = '0' + n2 % 10;
+                d2++;
+                n2 /= 10;
+            }
+            while (d2 > 0)
+            {
+                d2--;
+                buff2[length2] = digits2[d2];
+                length2++;
+            }
+            buff2[length2] = '\0';
+            Lives_value.setString(buff2);
 
 
 
-
-         window.clear();
-         window.draw(BackGround_S);
-         window.draw(SideScreen);
-         window.draw(Game_Title);
-         window.draw(Score_counter);
-         window.draw(Score_value);
-            
+            window.clear();
+            window.draw(BackGround_S);
+            window.draw(SideScreen);
+            window.draw(Game_Title);
+            window.draw(Score_counter);
+            window.draw(Score_value);
+            window.draw(Lives_counter);
+            window.draw(Lives_value);
 
             // TEST: red squares over wall cells (delete when walls are finished)
             sf::RectangleShape box({ float(CELL), float(CELL) });
@@ -322,15 +382,53 @@ int main()
                         window.draw(dot);
                     }
 
+        }
+        window.draw(Player1.sprite);   // last, so he is on top
+        if (is_game_paused)
+        {
+            window.draw(overlay);
+            window.draw(paused_text);
+            window.draw(paused_text_additional);
+        }
 
-            window.draw(Player1);   // last, so he is on top
-            if (is_game_paused)
+        window.draw(Blinky.sprite);
+
+        if (Player1.lives <= 0)
+        {
+            window.draw(game_over_screen);
+            window.draw(game_over_text);
+            window.draw(game_over_text_additional);
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space))
             {
-                window.draw(overlay);
-                window.draw(paused_text);
-                window.draw(paused_text_additional);
+                Player1.lives = 1;
+                Player1.score = 0;
+                place_dots();
+                Player1.sprite.setPosition({ 70, 830 });
+                clock.restart();
+                direction = ' ';
             }
+        }
         window.display();
 
+    }
+}
+
+void place_dots()
+{
+    for (int i = 0; i < ROWS - 1; i += 2)
+    {
+        for (int j = 0; j < COLS - 1; j += 2)
+        {
+            int a = i * COLS + j;          // top-left
+            int b = i * COLS + j + 1;      // top-right
+            int c = (i + 1) * COLS + j;    // bottom-left
+            int d = (i + 1) * COLS + j + 1; // bottom-right
+
+            // agar chaaron khali hain to dot lagao
+            if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
+            {
+                maze[a] = 2;
+            }
+        }
     }
 }
