@@ -297,6 +297,17 @@ int main()
                 // 3. DRAW
             }
 
+            // working on teleportation
+
+            if (Player1.sprite.getPosition().y >= 398 && Player1.sprite.getPosition().y <= 453)
+            {
+                if (Player1.sprite.getPosition().x <= 41)
+                    Player1.sprite.setPosition({ 860, 421 });
+                else if (Player1.sprite.getPosition().x >= 882)
+                    Player1.sprite.setPosition({ 43, 421 });
+            }
+
+
             // take the current score and store it in score value
             char buff[12], digits[12];
             int length = 0;
