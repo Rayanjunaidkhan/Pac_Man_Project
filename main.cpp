@@ -4,66 +4,62 @@
 struct Player
 {
     sf::Sprite sprite;
-    int lives = 1;
-    int score = 0;
+    int lives = 3;
+    int score = -10;
     int current_state = 0; // 0 for normal, 1 for eating ghost mode, 2 for faster speed
+    int speed = 120;
 
     Player(const sf::Texture& tex) : sprite(tex) {}
 };
-
 struct Ghost
 {
     sf::Sprite sprite;
     int state = 0; // 0  is normal, 1 is scared
+    int speed = 130;
     Ghost(const sf::Texture& tex) : sprite(tex) {}
 };
 
 
 void place_dots();
+void drawWallLayer(sf::RenderWindow& window, float thickness, sf::Color color, sf::RenderStates states);
 
 // making constants coz these are fixed mapping values of game.
-const int CELL = 25;   // size of one square, in pixels
-const int COLS = 36;   // how many squares across
-const int ROWS = 36;   // how many squares down
+const int CELL = 36;   // size of one square, in pixels
+const int COLS = 25;   // how many squares across
+const int ROWS = 25;   // how many squares down
+
 int maze[COLS * ROWS] = {
-   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,   // row 0 (top)
-   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,   // row 1
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 2
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 3
-   1,1,0,0,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,   // row 4
-   1,1,0,0,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,1,   // row 5
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 6
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 7
-   1,1,0,0,1,1,1,1,0,0,1,0,0,0,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,   // row 8
-   1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,1,   // row 9
-   1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,1,   // row 10
-   1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,   // row 11
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 12
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 13
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 14
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,1,1,1,0,0,1,1,1,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 15
-   0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   // row 16
-   0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,   // row 17
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 18
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 19
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 20
-   1,1,1,1,1,1,1,1,0,0,1,0,0,0,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,1,1,1,   // row 21
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 22
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 23
-   1,1,0,0,1,1,1,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,0,0,1,1,1,1,0,0,1,1,   // row 24
-   1,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,0,0,1,0,0,0,0,0,1,1,   // row 25
-   1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,   // row 26
-   1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,   // row 27
-   1,1,1,1,0,0,0,1,0,0,1,0,0,0,1,1,1,1,1,1,1,1,0,0,1,0,0,0,1,0,0,0,1,1,1,1,   // row 28
-   1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,1,   // row 29
-   1,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,1,   // row 30
-   1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,   // row 31
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 32
-   1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,   // row 33
-   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,  // row 34
-   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1  // row 35 (bottom, no comma at the very end)
+1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1, // row 0
+1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 1
+1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,1,0,1,1,1,1,0,1, // row 2
+1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1, // row 3
+1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1, // row 4
+1,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,1,1,1,1,0,1, // row 5
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1, // row 6
+1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1,0,1, // row 7
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1, // row 8
+1,0,0,0,0,0,0,1,0,0,1,1,0,1,1,0,0,1,0,0,0,0,0,0,1, // row 9
+1,1,1,1,1,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1, // row 10
+-1,0,0,0,0,0,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,0,0,0,-1, // row 11
+1,1,1,1,1,0,0,1,0,0,1,1,1,1,1,0,0,1,0,0,1,1,1,1,1, // row 12
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1, // row 13
+1,0,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,1, // row 14
+1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1, // row 15
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1, // row 16
+1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,0,1,0,1,1,1,1,0,1, // row 17
+1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1, // row 18
+1,0,1,1,1,1,0,1,0,0,0,0,1,0,0,0,0,1,0,1,1,1,1,0,1, // row 19
+1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1, // row 20
+1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1, // row 21
+1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,1,0,1,1,1,1,0,1, // row 22
+1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 23
+1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1  // row 24
 };
+
+
 // ===== ADDING THESE TWO FUNCTIONS HERE COZ THEY ARE FOR MOVEMENT+DEFINED BOUNDARIES =====
+
+// is wall 1 is used in making sure player cant cross walls
 bool isWall(float x, float y)
 {
     if (x < 0 || y < 0)
@@ -75,6 +71,14 @@ bool isWall(float x, float y)
     if (col >= COLS || row >= ROWS)
         return true;
 
+    return maze[row * COLS + col] == 1;
+}
+
+// is wall2 is used in map construction
+bool isWall2(int row, int col)
+{
+    if (row < 0 || row >= ROWS || col < 0 || col >= COLS)
+        return false;
     return maze[row * COLS + col] == 1;
 }
 
@@ -93,13 +97,8 @@ int main()
     window.setFramerateLimit(60);
 
     // maze background
-    sf::Texture BackGround("maze_revised.bmp");
+    sf::Texture BackGround("maze.bmp");
     sf::Sprite BackGround_S(BackGround);
-    //BackGround_S.setScale(
-    //    {
-    //        float(window.getSize().x) / BackGround.getSize().x,
-    //        float(window.getSize().y) / BackGround.getSize().y
-    //    });
 
     // player
     sf::Texture Player1_texA("Player1_TextureA.png");
@@ -107,21 +106,21 @@ int main()
     Player Player1(Player1_texA);
     Player1.sprite.setScale(
         {
-            50 / float(Player1_texA.getSize().x),
-            50 / float(Player1_texA.getSize().y)
+            40 / float(Player1_texA.getSize().x),
+            40 / float(Player1_texA.getSize().y)
         });
     float player1_width = Player1.sprite.getLocalBounds().size.x;
     float player1_height = Player1.sprite.getLocalBounds().size.y;
     Player1.sprite.setOrigin({ player1_width / 2, player1_height / 2 });
-    Player1.sprite.setPosition({ 70, 830 });
+    Player1.sprite.setPosition({ 54, 846 });
 
     // this code is for making the ghost
         // this code is for making red ghost blinky
     sf::Texture Blinky_tex("red_ghost.png");
     Ghost Blinky(Blinky_tex);
     Blinky.sprite.setScale({
-        50 / float(Blinky_tex.getSize().x),
-        50 / float(Blinky_tex.getSize().y)
+        30 / float(Blinky_tex.getSize().x),
+        30 / float(Blinky_tex.getSize().y)
         });
     Blinky.sprite.setPosition({ 400,400 });
 
@@ -179,21 +178,13 @@ int main()
 
 
     // variables (each declared ONCE)
-    sf::Clock clock, timer_for_texture_change;
-    float speed = 100;       // pixels per second
+    sf::Clock clock, timer_for_texture_change;    
     float half = 15;         // half of Pac-Man's size (40 / 2) //another change here half=15 from now to make pac-man movement checking defined.
     char direction = ' ';
     bool has_the_run_started = false, current_texture = false;
     bool is_game_paused = false;
-    // edges of the open area (from your array)
-   //I, Hmzaa is commenting them coz they are here just to define whole maze as a square box and pac man can't go outside but i a using function calling istead of it.
-   /* float leftLimit = 50;
-    float rightLimit = 850;
-    float topLimit = 50;
-    float bottomLimit = 850;*/
-    //Dots
 
-    //// har 2x2 block mein ek dot
+    // places dots in every 1x1 area
     place_dots();
 
 
@@ -202,7 +193,7 @@ int main()
 
     while (window.isOpen())
     {
-        // 1. INPUT
+        // This makes sure you can pause game or exit window
         while (const std::optional event = window.pollEvent())
         {
             if (event->is<sf::Event::Closed>())
@@ -213,16 +204,20 @@ int main()
                     is_game_paused = !is_game_paused;
             }
         }
-        // 2. UPDATE
+        
+        // first check if player has enough lives, if he does run game else show Game over screen
         if (Player1.lives > 0)
         {
+            // check is game is paused or not
             if (!is_game_paused)
             {
+                // this variable stores the time between 2 movement key presses
                 float dt = clock.restart().asSeconds();
 
-                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
+                // changes direction if movement key pressed
+                if (sf::Keyboard::isKeyPressed (sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed (sf::Keyboard::Key::Up))
                     direction = 'U';
-                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
+                else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
                     direction = 'L';
                 else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
                     direction = 'D';
@@ -237,29 +232,29 @@ int main()
                 if (direction == 'U')
                 {
                     Player1.sprite.setRotation(sf::degrees(270));
-                    newY -= speed * dt;
+                    newY -= Player1.speed * dt;
                     has_the_run_started = true;
                 }
                 else if (direction == 'L')
                 {
                     Player1.sprite.setRotation(sf::degrees(180));
-                    newX -= speed * dt;
+                    newX -= Player1.speed * dt;
                     has_the_run_started = true;
                 }
                 else if (direction == 'D')
                 {
                     Player1.sprite.setRotation(sf::degrees(90));
-                    newY += speed * dt;
+                    newY += Player1.speed * dt;
                     has_the_run_started = true;
                 }
                 else if (direction == 'R')
                 {
                     Player1.sprite.setRotation(sf::degrees(360));
-                    newX += speed * dt;
+                    newX += Player1.speed * dt;
                     has_the_run_started = true;
                 }
 
-
+                // starts the pacman animation if any movement key is pressed
                 if (has_the_run_started == true)
                 {
                     // write code for changing of texture
@@ -281,18 +276,24 @@ int main()
                     pos.y = newY;
 
                 Player1.sprite.setPosition(pos);
-                for (int r = 0; r < ROWS - 1; r += 2)
-                    for (int c = 0; c < COLS - 1; c += 2)
+                
+
+                for (int r = 0; r < ROWS; r++)
+                {
+                    for (int c = 0; c < COLS; c++)
+                    {
                         if (maze[r * COLS + c] == 2)
                         {
-                            float dx = pos.x - (c + 1) * (float)CELL;
-                            float dy = pos.y - (r + 1) * (float)CELL;
+                            float dx = pos.x - (c + 0.5f) * CELL;
+                            float dy = pos.y - (r + 0.5f) * CELL;
                             if (dx * dx + dy * dy < 15.f * 15.f)
                             {
                                 maze[r * COLS + c] = 0;
                                 Player1.score += 10;
                             }
                         }
+                    }
+                }
 
                 // 3. DRAW
             }
@@ -302,9 +303,9 @@ int main()
             if (Player1.sprite.getPosition().y >= 398 && Player1.sprite.getPosition().y <= 453)
             {
                 if (Player1.sprite.getPosition().x <= 41)
-                    Player1.sprite.setPosition({ 860, 421 });
+                    Player1.sprite.setPosition({ 860, 414 });
                 else if (Player1.sprite.getPosition().x >= 882)
-                    Player1.sprite.setPosition({ 43, 421 });
+                    Player1.sprite.setPosition({ 43, 414 });
             }
 
 
@@ -368,30 +369,32 @@ int main()
             window.draw(Lives_value);
 
             // TEST: red squares over wall cells (delete when walls are finished)
-            sf::RectangleShape box({ float(CELL), float(CELL) });
-            box.setFillColor(sf::Color(255, 0, 0, 120));
-            for (int row = 0; row < ROWS; row++)
-            {
-                for (int col = 0; col < COLS; col++)
-                {
-                    if (maze[row * COLS + col] == 1)
-                    {
-                        box.setPosition({ float(col * CELL), float(row * CELL) });
-                        window.draw(box);
-                    }
-                }
-            }
+            // This is rayan, Dont delete this, i am using it to build maze
+
+            sf::RenderStates glowStates;
+            glowStates.blendMode = sf::BlendAdd;   // colors add up, which gives the glow
+
+            // outer glow, then inner glow (additive)
+            drawWallLayer(window, 30.f, sf::Color(255, 180, 0, 40), glowStates);
+            drawWallLayer(window, 22.f, sf::Color(255, 200, 20, 90), glowStates);
+
+            // bright thin core on top (normal drawing)
+            drawWallLayer(window, 10.f, sf::Color(255, 248, 190), sf::RenderStates::Default);
             //draw dots
             sf::CircleShape dot(3.f);
             dot.setFillColor(sf::Color::Yellow);
 
-            for (int r = 0; r < ROWS - 1; r += 2)
-                for (int c = 0; c < COLS - 1; c += 2)
+            for (int r = 0; r < ROWS; r++)
+            {
+                for (int c = 0; c < COLS; c++)
+                {
                     if (maze[r * COLS + c] == 2)
                     {
-                        dot.setPosition({ (c + 1) * (float)CELL - 3.f, (r + 1) * (float)CELL - 3.f });
+                        dot.setPosition({ (c + 0.5f) * CELL - 3.f, (r + 0.5f) * CELL - 3.f });
                         window.draw(dot);
                     }
+                }
+            }
 
         }
         window.draw(Player1.sprite);   // last, so he is on top
@@ -412,9 +415,9 @@ int main()
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space))
             {
                 Player1.lives = 1;
-                Player1.score = 0;
+                Player1.score = -10;
                 place_dots();
-                Player1.sprite.setPosition({ 70, 830 });
+                Player1.sprite.setPosition({ 54, 846 });
                 clock.restart();
                 direction = ' ';
             }
@@ -426,19 +429,57 @@ int main()
 
 void place_dots()
 {
-    for (int i = 0; i < ROWS - 1; i += 2)
+    for (int r = 0; r < ROWS; r++)
     {
-        for (int j = 0; j < COLS - 1; j += 2)
+        for (int c = 0; c < COLS; c++)
         {
-            int a = i * COLS + j;          // top-left
-            int b = i * COLS + j + 1;      // top-right
-            int c = (i + 1) * COLS + j;    // bottom-left
-            int d = (i + 1) * COLS + j + 1; // bottom-right
+            if (maze[r * COLS + c] != 0)
+                continue;
 
-            // agar chaaron khali hain to dot lagao
-            if (maze[a] == 0 && maze[b] == 0 && maze[c] == 0 && maze[d] == 0)
+            // no dots inside the ghost house
+            bool inHouse = (r >= 9 && r <= 12 && c >= 10 && c <= 14);
+            if (!inHouse)
+                maze[r * COLS + c] = 2;
+        }
+    }
+}
+
+void drawWallLayer(sf::RenderWindow& window, float thickness, sf::Color color, sf::RenderStates states)
+{
+    sf::RectangleShape piece;
+    piece.setFillColor(color);
+
+    float margin = (CELL - thickness) / 2.f;   // gap between tile edge and the shape
+
+    for (int row = 0; row < ROWS; row++)
+    {
+        for (int col = 0; col < COLS; col++)
+        {
+            if (!isWall2(row, col))
+                continue;
+
+            float x = float(col * CELL);
+            float y = float(row * CELL);
+
+            // square in the middle of the tile
+            piece.setSize({ thickness, thickness });
+            piece.setPosition({ x + margin, y + margin });
+            window.draw(piece, states);
+
+            // connector to the wall on the right
+            if (isWall2(row, col + 1))
             {
-                maze[a] = 2;
+                piece.setSize({ CELL - thickness, thickness });
+                piece.setPosition({ x + margin + thickness, y + margin });
+                window.draw(piece, states);
+            }
+
+            // connector to the wall below
+            if (isWall2(row + 1, col))
+            {
+                piece.setSize({ thickness, CELL - thickness });
+                piece.setPosition({ x + margin, y + margin + thickness });
+                window.draw(piece, states);
             }
         }
     }
