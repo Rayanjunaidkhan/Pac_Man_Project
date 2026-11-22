@@ -123,6 +123,34 @@ int main()
         30 / float(Blinky_tex.getSize().y)
         });
     Blinky.sprite.setPosition({ 400,400 });
+	//i,hamza writing this code to add blue ghosts in the game.
+
+    sf::Texture blue_tex("bluee.png");
+    Ghost blue(blue_tex);
+    blue.sprite.setScale({
+        36 / float(blue_tex.getSize().x),
+        36 / float(blue_tex.getSize().y)
+        });
+    blue.sprite.setPosition({ 400, 360 });
+    
+	//i,hamza writing this code to add yellow ghosts in the game.
+    
+    sf::Texture Yellow_tex("yellow_ghost.png");
+    Ghost Yellow(Yellow_tex);
+    Yellow.sprite.setScale({
+        30 / float(Yellow_tex.getSize().x),
+        30 / float(Yellow_tex.getSize().y)
+        });
+    Yellow.sprite.setPosition({ 470, 400 });
+
+	// this code is for making pink ghost pinky.
+    sf::Texture Pinky_tex("pink_ghost.png");
+    Ghost Pinky(Pinky_tex);
+    Pinky.sprite.setScale({
+        36 / float(Pinky_tex.getSize().x),
+        36 / float(Pinky_tex.getSize().y)
+        });
+    Pinky.sprite.setPosition({ 470, 360 });
 
     // this makes the pasue menu screen
     sf::RectangleShape overlay({ 900, 900 });
@@ -406,6 +434,10 @@ int main()
         }
 
         window.draw(Blinky.sprite);
+        window.draw(blue.sprite);
+		window.draw(Yellow.sprite);
+        window.draw(Pinky.sprite);
+
 
         if (Player1.lives <= 0)
         {
