@@ -1,5 +1,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <fstream>
+#include <string>
 #include <iostream>
 struct Player
 {
@@ -90,6 +92,73 @@ bool canMoveTo(float x, float y, float half)
     if (isWall(x + half, y + half)) return false;
     return true;
 }
+//leaderboard code by hmza:
+
+int topScores[6];      // 5 best scores + 1 spare slot
+int topTimes[6];       // seconds each run lasted
+int savedCount = 0;    // how many scores we have right now
+
+// read the file when the game starts
+void loadScores()
+{
+    std::ifstream file("leaderboard.txt");
+    savedCount = 0;
+    while (savedCount < 5 && file >> topScores[savedCount] >> topTimes[savedCount])
+        savedCount++;
+}
+
+// add a new score, sort, keep 5, save
+void addScore(int score, int seconds)
+{
+    topScores[savedCount] = score;       // put the new one at the end
+    topTimes[savedCount] = seconds;
+    savedCount++;
+
+    // sort: biggest score first (bubble sort)
+    for (int i = 0; i < savedCount - 1; i++)
+    {
+        for (int j = 0; j < savedCount - 1 - i; j++)
+        {
+            if (topScores[j] < topScores[j + 1])
+            {
+                int temp = topScores[j];
+                topScores[j] = topScores[j + 1];
+                topScores[j + 1] = temp;
+
+                temp = topTimes[j];
+                topTimes[j] = topTimes[j + 1];
+                topTimes[j + 1] = temp;
+            }
+        }
+    }
+
+    if (savedCount > 5)
+        savedCount = 5;                  // forget the 6th
+
+    // save to the file
+    std::ofstream file("leaderboard.txt");
+    for (int i = 0; i < savedCount; i++)
+        file << topScores[i] << " " << topTimes[i] << "\n";
+}
+
+// show the list on the screen
+void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
+{
+    sf::Text title(font, "TOP 5 SCORES", 40);
+    title.setPosition({ 400.f, 550.f });
+    window.draw(title);
+
+    for (int i = 0; i < savedCount; i++)
+    {
+        std::string line = std::to_string(i + 1) + ".  " +
+            std::to_string(topScores[i]) + " pts   " +
+            std::to_string(topTimes[i]) + " sec";
+        sf::Text row(font, line, 30);
+        row.setPosition({ 400.f, 600.f + i * 40.f });
+        window.draw(row);
+    }
+}
+
 int main()
 {
     // window
@@ -212,6 +281,11 @@ int main()
     bool has_the_run_started = false, current_texture = false;
     bool is_game_paused = false;
 
+	//seconds counter for leaderboard: 
+
+    float run_time = 0;           // seconds played in this run
+    bool score_saved = false;     // so we save only once per game over
+    loadScores();                 // read the file when the game starts
     // places dots in every 1x1 area
     place_dots();
 
@@ -241,6 +315,9 @@ int main()
             {
                 // this variable stores the time between 2 movement key presses
                 float dt = clock.restart().asSeconds();
+
+				// this variable stores the total time of the game run: (leaderboard code by hmza):
+                run_time += dt;
 
                 // changes direction if movement key pressed
                 if (sf::Keyboard::isKeyPressed (sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed (sf::Keyboard::Key::Up))
@@ -441,6 +518,13 @@ int main()
 
         if (Player1.lives <= 0)
         {
+			// save the score if not already done (leaderboard code by hmza):
+            if (!score_saved)
+            {
+                addScore(Player1.score, int(run_time));
+                score_saved = true;
+            }
+
             window.draw(game_over_screen);
             window.draw(game_over_text);
             window.draw(game_over_text_additional);
@@ -452,6 +536,9 @@ int main()
                 Player1.sprite.setPosition({ 54, 846 });
                 clock.restart();
                 direction = ' ';
+				// reset the run time and score saved flag for the next game (leaderboard code by hmza):
+                run_time = 0;
+                score_saved = false;
             }
         }
         window.display();
