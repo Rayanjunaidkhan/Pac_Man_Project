@@ -3,6 +3,7 @@
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
 struct Player
 {
     sf::Sprite sprite;
@@ -192,7 +193,7 @@ int main()
         30 / float(Blinky_tex.getSize().y)
         });
     Blinky.sprite.setPosition({ 400,400 });
-	//i,hamza writing this code to add blue ghosts in the game.
+    //i,hamza writing this code to add blue ghosts in the game.
 
     sf::Texture blue_tex("bluee.png");
     Ghost blue(blue_tex);
@@ -201,9 +202,9 @@ int main()
         36 / float(blue_tex.getSize().y)
         });
     blue.sprite.setPosition({ 400, 360 });
-    
-	//i,hamza writing this code to add yellow ghosts in the game.
-    
+
+    //i,hamza writing this code to add yellow ghosts in the game.
+
     sf::Texture Yellow_tex("yellow_ghost.png");
     Ghost Yellow(Yellow_tex);
     Yellow.sprite.setScale({
@@ -212,7 +213,7 @@ int main()
         });
     Yellow.sprite.setPosition({ 470, 400 });
 
-	// this code is for making pink ghost pinky.
+    // this code is for making pink ghost pinky.
     sf::Texture Pinky_tex("pink_ghost.png");
     Ghost Pinky(Pinky_tex);
     Pinky.sprite.setScale({
@@ -275,7 +276,7 @@ int main()
 
 
     // variables (each declared ONCE)
-    sf::Clock clock, timer_for_texture_change;    
+    sf::Clock clock, timer_for_texture_change;
     float half = 15;         // half of Pac-Man's size (40 / 2) //another change here half=15 from now to make pac-man movement checking defined.
     char direction = ' ';
     bool has_the_run_started = false, current_texture = false;
@@ -288,6 +289,37 @@ int main()
     loadScores();                 // read the file when the game starts
     // places dots in every 1x1 area
     place_dots();
+
+    // ===== GHOST MOVEMENT SETUP =====
+    // Done by MUHAMMAD KHIZAR REHMAN
+    Ghost* gh[4] = { &Blinky, &Pinky, &blue, &Yellow };  // 0 red, 1 pink, 2 blue, 3 yellow
+    int gr[4] = { 11, 10, 10, 11 };   // row of the tile the ghost is on
+    int gc[4] = { 11, 13, 11, 13 };   // column of that tile
+    int nr[4] = { 11, 10, 10, 11 };   // row of the tile it is walking to
+    int nc[4] = { 11, 13, 11, 13 };   // column of that tile
+    int vr[4] = { 0, 0, 0, 0 };       // last step taken (row)
+    int vc[4] = { 0, 0, 0, 0 };       // last step taken (column)
+    int cr[4] = { 1, 1, 23, 23 };     // corner each ghost runs to (row)
+    int cc[4] = { 23, 1, 23, 1 };     // corner each ghost runs to (column)
+    int dR[4] = { -1, 0, 1, 0 };      // the 4 ways: up, left, down, right
+    int dC[4] = { 0, -1, 0, 1 };
+    float rel[4] = { 0, 3, 6, 9 };    // seconds before each ghost leaves the house
+    float gt = 0, mt = 0;             // game time, mode timer
+    bool scat = false;                // false = chase, true = run to corner
+
+    // ===== LIFE LOSS SETUP (ghost touches pac-man) =====
+    // Done by MUHAMMAD KHIZAR REHMAN
+    bool rst = false;                 // true = put ghosts back in the house
+    int hr[4] = { 11, 10, 10, 11 };   // home tile of each ghost (row)
+    int hc[4] = { 11, 13, 11, 13 };   // home tile of each ghost (column)
+
+    for (int i = 0; i < 4; i++)
+    {
+        sf::FloatRect b = gh[i]->sprite.getLocalBounds();
+        gh[i]->sprite.setOrigin({ b.size.x / 2, b.size.y / 2 });
+        gh[i]->sprite.setPosition({ (gc[i] + 0.5f) * CELL, (gr[i] + 0.5f) * CELL });
+    }
+    // ===== END OF GHOST MOVEMENT SETUP =====
 
 
     // this makes sure that holding esc dosent make pause screen flicker
@@ -306,7 +338,7 @@ int main()
                     is_game_paused = !is_game_paused;
             }
         }
-        
+
         // first check if player has enough lives, if he does run game else show Game over screen
         if (Player1.lives > 0)
         {
@@ -320,9 +352,9 @@ int main()
                 run_time += dt;
 
                 // changes direction if movement key pressed
-                if (sf::Keyboard::isKeyPressed (sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed (sf::Keyboard::Key::Up))
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
                     direction = 'U';
-                else if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
+                else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
                     direction = 'L';
                 else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
                     direction = 'D';
@@ -381,7 +413,7 @@ int main()
                     pos.y = newY;
 
                 Player1.sprite.setPosition(pos);
-                
+
 
                 for (int r = 0; r < ROWS; r++)
                 {
@@ -399,6 +431,160 @@ int main()
                         }
                     }
                 }
+
+                // ===== GHOST MOVEMENT =====
+                // Done by MUHAMMAD KHIZAR REHMAN
+
+                // after a hit, put the ghosts back in the house and restart their timers
+                if (rst)
+                {
+                    for (int i = 0; i < 4; i++)
+                    {
+                        gr[i] = nr[i] = hr[i];
+                        gc[i] = nc[i] = hc[i];
+                        vr[i] = 0;
+                        vc[i] = 0;
+                        gh[i]->sprite.setPosition({ (hc[i] + 0.5f) * CELL, (hr[i] + 0.5f) * CELL });
+                    }
+                    gt = 0;
+                    mt = 0;
+                    scat = false;
+                    has_the_run_started = false;
+                    rst = false;
+                }
+
+                if (has_the_run_started)
+                {
+                    gt += dt;
+                    mt += dt;
+                }
+                if (scat && mt >= 7) { scat = false; mt = 0; }        // 7 sec corner run
+                else if (!scat && mt >= 20) { scat = true; mt = 0; }  // then 20 sec chase
+
+                // pac-man's tile and which way he faces
+                int pr = int(pos.y) / CELL;
+                int pc = int(pos.x) / CELL;
+                int ar = 0, ac = 0;
+                if (direction == 'U') ar = -1;
+                else if (direction == 'D') ar = 1;
+                else if (direction == 'L') ac = -1;
+                else if (direction == 'R') ac = 1;
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (!has_the_run_started || gt < rel[i])
+                        continue;
+
+                    sf::Vector2f gp = gh[i]->sprite.getPosition();
+                    float tx = (nc[i] + 0.5f) * CELL;
+                    float ty = (nr[i] + 0.5f) * CELL;
+                    float step = gh[i]->speed * dt;
+                    float left = std::abs(tx - gp.x) + std::abs(ty - gp.y);
+
+                    // still walking to the next tile
+                    if (left > step)
+                    {
+                        gp.x += vc[i] * step;
+                        gp.y += vr[i] * step;
+                        gh[i]->sprite.setPosition(gp);
+                        continue;
+                    }
+
+                    // reached the tile centre, so snap there and decide the next turn
+                    gh[i]->sprite.setPosition({ tx, ty });
+                    gr[i] = nr[i];
+                    gc[i] = nc[i];
+
+                    // 1) choose the target square
+                    int tr, tc;
+                    bool inH = (gr[i] >= 9 && gr[i] <= 11 && gc[i] >= 11 && gc[i] <= 13);
+                    if (inH)
+                    {
+                        tr = 8; tc = 12;                   // head for the house door
+                    }
+                    else if (scat)
+                    {
+                        tr = cr[i]; tc = cc[i];            // own corner
+                    }
+                    else if (i == 0)
+                    {
+                        tr = pr; tc = pc;                  // red: pac-man himself
+                    }
+                    else if (i == 1)
+                    {
+                        tr = pr + 4 * ar;                  // pink: 4 squares ahead
+                        tc = pc + 4 * ac;
+                    }
+                    else if (i == 2)
+                    {
+                        int mr = pr + 2 * ar, mc = pc + 2 * ac;  // 2 squares ahead
+                        tr = 2 * mr - gr[0];                     // red -> there, doubled
+                        tc = 2 * mc - gc[0];
+                    }
+                    else
+                    {
+                        int da = pr - gr[i], db = pc - gc[i];
+                        if (da * da + db * db < 64)        // closer than 8 squares
+                        {
+                            tr = cr[i]; tc = cc[i];        // run home
+                        }
+                        else
+                        {
+                            tr = pr; tc = pc;              // far away, so chase
+                        }
+                    }
+
+                    // 2) of the 4 ways, pick the one that ends closest to the target
+                    int best = -1, bd = 999999;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        if (dR[k] == -vr[i] && dC[k] == -vc[i])
+                            continue;                                   // no turning back
+                        int r2 = gr[i] + dR[k], c2 = gc[i] + dC[k];
+                        if (r2 < 0 || r2 >= ROWS || c2 < 0 || c2 >= COLS)
+                            continue;
+                        if (maze[r2 * COLS + c2] == 1 || maze[r2 * COLS + c2] == -1)
+                            continue;                                   // wall (or tunnel edge)
+                        if (!inH && r2 >= 9 && r2 <= 11 && c2 >= 11 && c2 <= 13)
+                            continue;                                   // can't go back in the house
+                        int d = (r2 - tr) * (r2 - tr) + (c2 - tc) * (c2 - tc);
+                        if (d < bd)
+                        {
+                            bd = d;
+                            best = k;
+                        }
+                    }
+
+                    if (best == -1)              // dead end: the only time it may turn back
+                    {
+                        vr[i] = -vr[i];
+                        vc[i] = -vc[i];
+                    }
+                    else
+                    {
+                        vr[i] = dR[best];
+                        vc[i] = dC[best];
+                    }
+                    nr[i] = gr[i] + vr[i];
+                    nc[i] = gc[i] + vc[i];
+                }
+
+                // ===== LIFE LOSS: ghost touches pac-man =====
+                // Done by MUHAMMAD KHIZAR REHMAN
+                for (int i = 0; i < 4; i++)
+                {
+                    sf::Vector2f q = gh[i]->sprite.getPosition();
+                    float ux = q.x - pos.x, uy = q.y - pos.y;
+                    if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
+                    {
+                        Player1.lives--;                         // lose one life
+                        Player1.sprite.setPosition({ 54, 846 }); // pac-man goes back to start
+                        direction = ' ';
+                        rst = true;                              // ghosts go back to the house
+                        break;                                   // only one life per hit
+                    }
+                }
+                // ===== END OF GHOST MOVEMENT =====
 
                 // 3. DRAW
             }
@@ -512,7 +698,7 @@ int main()
 
         window.draw(Blinky.sprite);
         window.draw(blue.sprite);
-		window.draw(Yellow.sprite);
+        window.draw(Yellow.sprite);
         window.draw(Pinky.sprite);
 
 
@@ -536,9 +722,6 @@ int main()
                 Player1.sprite.setPosition({ 54, 846 });
                 clock.restart();
                 direction = ' ';
-				// reset the run time and score saved flag for the next game (leaderboard code by hmza):
-                run_time = 0;
-                score_saved = false;
             }
         }
         window.display();
