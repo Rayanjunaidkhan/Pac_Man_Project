@@ -282,7 +282,7 @@ int main()
     bool has_the_run_started = false, current_texture = false;
     bool is_game_paused = false;
 
-	//seconds counter for leaderboard: 
+    //seconds counter for leaderboard: 
 
     float run_time = 0;           // seconds played in this run
     bool score_saved = false;     // so we save only once per game over
@@ -342,13 +342,13 @@ int main()
         // first check if player has enough lives, if he does run game else show Game over screen
         if (Player1.lives > 0)
         {
-            // check is game is paused or not
+            // check is game paused or not
             if (!is_game_paused)
             {
                 // this variable stores the time between 2 movement key presses
                 float dt = clock.restart().asSeconds();
 
-				// this variable stores the total time of the game run: (leaderboard code by hmza):
+                // this variable stores the total time of the game run: (leaderboard code by hmza):
                 run_time += dt;
 
                 // changes direction if movement key pressed
@@ -704,7 +704,7 @@ int main()
 
         if (Player1.lives <= 0)
         {
-			// save the score if not already done (leaderboard code by hmza):
+            // save the score if not already done (leaderboard code by hmza):
             if (!score_saved)
             {
                 addScore(Player1.score, int(run_time));
@@ -714,6 +714,7 @@ int main()
             window.draw(game_over_screen);
             window.draw(game_over_text);
             window.draw(game_over_text_additional);
+            drawLeaderboard(window, font);              // shows the top 5 list (leaderboard code by hmza)
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space))
             {
                 Player1.lives = 1;
@@ -722,6 +723,9 @@ int main()
                 Player1.sprite.setPosition({ 54, 846 });
                 clock.restart();
                 direction = ' ';
+                run_time = 0;                           // new run starts from zero (leaderboard code by hmza)
+                score_saved = false;                    // allow the next game over to save again
+
             }
         }
         window.display();
