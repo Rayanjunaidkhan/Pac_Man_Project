@@ -1,7 +1,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <fstream>
-#include <string>
+#include <string>                    //pushing error resolving
 # include<optional> // Abd
 #include <iostream>
 #include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
