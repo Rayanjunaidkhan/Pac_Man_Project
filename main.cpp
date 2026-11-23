@@ -1,14 +1,14 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 #include <fstream>
-#include <string>                    //pushing error resolving
+#include <string>
 # include<optional> // Abd
 #include <iostream>
 #include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
 struct Player
 {
     sf::Sprite sprite;
-    int lives = 3;   // Done by MUHAMMAD KHIZAR REHMAN: only 1 life as in the proposal (was 3)
+    int lives = 1;   // Done by MUHAMMAD KHIZAR REHMAN: only 1 life as in the proposal
     int score = -10;
     int current_state = 0; // 0 for normal, 1 for eating ghost mode, 2 for faster speed
     int speed = 120;
@@ -480,7 +480,7 @@ int main()
         if (maze[i] == 2)
             tot++;
     float rs[COLS * ROWS] = { 0 };   // respawn countdown of each eaten pellet
-    float rsT = 30.f;                // an eaten pellet comes back after 30 sec
+    float rsT = 300.f;               // an eaten pellet comes back after 300 sec (5 min)
     sf::RectangleShape gsh({ 36.f, 36.f });
     gsh.setOutlineThickness(3.f);
     gsh.setOutlineColor(sf::Color::White);
@@ -726,6 +726,8 @@ int main()
                     ghostsScared = scaredNow;
                     for (int i = 0; i < 8; i++)
                     {
+                        if (gh[i]->isBoss)
+                            continue;                 // boss keeps its red boss look
                         sf::Texture& t = ghostsScared ? blue_tex : *ghostTex[i];
                         gh[i]->sprite.setTexture(t, true);
                         gh[i]->sprite.setScale({ ghostSize[i] / float(t.getSize().x),
@@ -764,7 +766,7 @@ int main()
 
                 if (has_the_run_started)
                 {
-                    gt += dt;
+                    gt += dt * (frenzyOn ? 2.f : 1.f);   // frenzy: ghosts leave the house twice as fast
                     mt += dt;
                 }
                 if (scat && mt >= 7)
@@ -791,7 +793,7 @@ int main()
 
                 for (int i = 0; i < ghostCount; i++)
                 {
-                    if (!has_the_run_started || gt < rel[i])
+                    if (!has_the_run_started || gt < rel[i] || !gh[i]->alive)
                         continue;
 
                     sf::Vector2f gp = gh[i]->sprite.getPosition();
@@ -891,13 +893,13 @@ int main()
                 // boss mode add by abd inwhich when two ghosts are kill so other 2 ghosts turn into boss mode
                 // ===== BOSS MODE (5.8) =====
                 int aliveCount = 0;
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < ghostCount; i++)
                     if (gh[i]->alive)
                         aliveCount++;
 
-                if (aliveCount <= 2)                          // 2 ya kam ghosts bache hain
+                if (aliveCount <= 1)                          // only 1 ghost left: it becomes the boss
                 {
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < ghostCount; i++)
                     {
                         if (!gh[i]->alive || gh[i]->isBoss)
                             continue;   // mara hua ya pehle se boss: skip
@@ -934,16 +936,17 @@ int main()
                     // Edited by abdullahameer for orbit speed
                     if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
                     {
-                        if (orbKillActive())
+                        // how many ghosts are still alive on this level
+                        int aliveNow = 0;
+                        for (int k = 0; k < ghostCount; k++)
+                            if (gh[k]->alive)
+                                aliveNow++;
+
+                        if (orbKillActive() && !gh[i]->isBoss && aliveNow > 1)
                         {
-                            // kill-ghost orb: ghost khatam, score milay, ghost wapas house mein
+                            // kill-ghost orb: the ghost dies until the next level (a boss ghost can't die)
                             Player1.score += 200 * mult;
-                            gr[i] = nr[i] = hr[i];
-                            gc[i] = nc[i] = hc[i];
-                            vr[i] = 0;
-                            vc[i] = 0;
-                            gh[i]->sprite.setPosition({ (hc[i] + 0.5f) * CELL, (hr[i] + 0.5f) * CELL });
-                            rel[i] = gt + (frenzyOn ? 1.5f : 3.f);   // frenzy: ghosts return twice as fast
+                            gh[i]->alive = false;
                         }
                         else if (!orbInvincible())
                         {
