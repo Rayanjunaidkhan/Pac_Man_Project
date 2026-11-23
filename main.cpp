@@ -432,6 +432,11 @@ int main()
     float run_time = 0;           // seconds played in this run
     bool score_saved = false;     // so we save only once per game over
     loadScores();                 // read the file when the game starts
+
+    // frenzy mode (5.5) by hmza
+    bool frenzyOn = false;      // true while frenzy is running
+    float frenzyWait = 0;       // seconds played since the last frenzy
+    float frenzyLeft = 0;       // seconds of frenzy still left
     // places dots in every 1x1 area
     //Pinky.alive = blue.alive = false;   // TEST: 2 ghosts pehle se mare hue   // testing for boss
     place_dots();
@@ -487,7 +492,7 @@ int main()
     // Done by MUHAMMAD KHIZAR REHMAN
     bool gv = false;        // is the grape on the map right now?
     float gtm = 0;          // seconds passed since the last grape spawn
-    float gsp = 3;        // spawn every 300 sec (5 min)
+    float gsp = 300;        // spawn every 300 sec (5 min)
     sf::Texture grape_tex("grape.png");         // grape picture (hmza: image instead of the purple circle)
     sf::Sprite grp(grape_tex);
     grp.setScale({ 30.f / grape_tex.getSize().x, 30.f / grape_tex.getSize().y });   // 30 x 30 pixels on screen
@@ -536,6 +541,30 @@ int main()
 
                 // this variable stores the total time of the game run: (leaderboard code by hmza):
                 run_time += dt;
+
+                // frenzy mode (5.5) by hmza
+                if (has_the_run_started)
+                {
+                    if (frenzyOn)
+                    {
+                        frenzyLeft -= dt;
+                        if (frenzyLeft <= 0)      // 10 seconds over
+                        {
+                            frenzyOn = false;
+                            frenzyWait = 0;       // start counting the next minute
+                        }
+                    }
+                    else
+                    {
+                        frenzyWait += dt;
+                        if (frenzyWait >= 60)     // 1 minute passed
+                        {
+                            frenzyOn = true;
+                            frenzyLeft = 10;
+                        }
+                    }
+                }
+                int mult = frenzyOn ? 5 : 1;      // points multiplier
                 // editimg by abd
                 orbsUpdate(dt);
                 if (levelBanner > 0)
@@ -629,7 +658,7 @@ int main()
                             if (dx * dx + dy * dy < 15.f * 15.f)
                             {
                                 maze[r * COLS + c] = 0;
-                                Player1.score += 10;
+                                Player1.score += 10 * mult;
                                 got++;                        // Done by MUHAMMAD KHIZAR REHMAN: count this pellet
                                 rs[r * COLS + c] = rsT;       // Done by MUHAMMAD KHIZAR REHMAN: it will come back later
                             }
@@ -637,7 +666,7 @@ int main()
                     }
                 }
                 // orbits  and levels speed added by abdullahameer
-                Player1.score += orbsPickup(pos);
+                Player1.score += orbsPickup(pos) * mult;
 
                 // ===== PELLET RESPAWN + EXIT GATE (5.6) =====
                 // Done by MUHAMMAD KHIZAR REHMAN
@@ -908,13 +937,13 @@ int main()
                         if (orbKillActive())
                         {
                             // kill-ghost orb: ghost khatam, score milay, ghost wapas house mein
-                            Player1.score += 200;
+                            Player1.score += 200 * mult;
                             gr[i] = nr[i] = hr[i];
                             gc[i] = nc[i] = hc[i];
                             vr[i] = 0;
                             vc[i] = 0;
                             gh[i]->sprite.setPosition({ (hc[i] + 0.5f) * CELL, (hr[i] + 0.5f) * CELL });
-                            rel[i] = gt + 3;                     // 3 sec baad dobara nikle
+                            rel[i] = gt + (frenzyOn ? 1.5f : 3.f);   // frenzy: ghosts return twice as fast
                         }
                         else if (!orbInvincible())
                         {
@@ -1025,6 +1054,7 @@ int main()
 
 
             window.clear();
+            BackGround_S.setColor(frenzyOn ? sf::Color(150, 90, 200) : sf::Color::White);   // tint background in frenzy
             window.draw(BackGround_S);
             window.draw(SideScreen);
             window.draw(Game_Title);
@@ -1041,11 +1071,19 @@ int main()
             glowStates.blendMode = sf::BlendAdd;   // colors add up, which gives the glow
 
             // outer glow, then inner glow (additive)
-            drawWallLayer(window, 30.f, sf::Color(255, 180, 0, 40), glowStates);
-            drawWallLayer(window, 22.f, sf::Color(255, 200, 20, 90), glowStates);
+            if (frenzyOn)   // frenzy colors: pink / purple
+            {
+                drawWallLayer(window, 30.f, sf::Color(255, 0, 200, 40), glowStates);
+                drawWallLayer(window, 22.f, sf::Color(255, 40, 220, 90), glowStates);
+            }
+            else
+            {
+                drawWallLayer(window, 30.f, sf::Color(255, 180, 0, 40), glowStates);
+                drawWallLayer(window, 22.f, sf::Color(255, 200, 20, 90), glowStates);
+            }
 
             // bright thin core on top (normal drawing)
-            drawWallLayer(window, 10.f, sf::Color(255, 248, 190), sf::RenderStates::Default);
+            drawWallLayer(window, 10.f, frenzyOn ? sf::Color(255, 200, 255) : sf::Color(255, 248, 190), sf::RenderStates::Default);
             //draw dots
             sf::CircleShape dot(3.f);
             dot.setFillColor(sf::Color::Yellow);
@@ -1084,6 +1122,14 @@ int main()
             // abdullahameer code here
 
             orbsDraw(window, run_time);
+
+            if (frenzyOn)
+            {
+                sf::Text frenzyText(font, "FRENZY x5: " + std::to_string(int(frenzyLeft) + 1), 30);
+                frenzyText.setFillColor(sf::Color::Magenta);
+                frenzyText.setPosition({ 930.f, 560.f });
+                window.draw(frenzyText);
+            }
         }
 
         window.draw(Player1.sprite);   // last, so he is on top
@@ -1136,6 +1182,8 @@ int main()
                 wanted = ' ';
                 run_time = 0;                           // new run starts from zero (leaderboard code by hmza)
                 score_saved = false;
+                frenzyOn = false;      // frenzy resets on restart (hmza)
+                frenzyWait = 0;
                 // allow the next game over to save again
                  // abdullahameer code
                 orbsReset(true);
