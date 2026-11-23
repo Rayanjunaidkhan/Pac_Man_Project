@@ -1,5 +1,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
+#include <algorithm>
 #include <fstream>
 #include <string>
 # include<optional> // Abd
@@ -573,6 +575,54 @@ bool canMoveTo(float x, float y, float half)
         return false;
     return true;
 }
+
+// Returns true when Pac-Man and a ghost are aligned horizontally or
+// vertically and no wall tile blocks the line between them.
+bool ghostSharesClearLane(sf::Vector2f pacmanPos, sf::Vector2f ghostPos)
+{
+    const float alignmentTolerance = 3.f;
+
+    if (pacmanPos.x < 0.f || pacmanPos.y < 0.f ||
+        ghostPos.x < 0.f || ghostPos.y < 0.f ||
+        pacmanPos.x >= COLS * CELL || ghostPos.x >= COLS * CELL ||
+        pacmanPos.y >= ROWS * CELL || ghostPos.y >= ROWS * CELL)
+        return false;
+
+    int pacRow = static_cast<int>(pacmanPos.y) / CELL;
+    int pacCol = static_cast<int>(pacmanPos.x) / CELL;
+    int ghostRow = static_cast<int>(ghostPos.y) / CELL;
+    int ghostCol = static_cast<int>(ghostPos.x) / CELL;
+
+    // Same horizontal lane.
+    if (pacRow == ghostRow && std::abs(pacmanPos.y - ghostPos.y) <= alignmentTolerance)
+    {
+        int firstCol = std::min(pacCol, ghostCol) + 1;
+        int lastCol = std::max(pacCol, ghostCol);
+
+        for (int col = firstCol; col < lastCol; col++)
+        {
+            if (maze[pacRow * COLS + col] == 1)
+                return false;
+        }
+        return true;
+    }
+
+    // Same vertical lane.
+    if (pacCol == ghostCol && std::abs(pacmanPos.x - ghostPos.x) <= alignmentTolerance)
+    {
+        int firstRow = std::min(pacRow, ghostRow) + 1;
+        int lastRow = std::max(pacRow, ghostRow);
+
+        for (int row = firstRow; row < lastRow; row++)
+        {
+            if (maze[row * COLS + pacCol] == 1)
+                return false;
+        }
+        return true;
+    }
+
+    return false;
+}
 //leaderboard code by hmza:
 
 int topScores[6];      // 5 best scores + 1 spare slot
@@ -909,6 +959,41 @@ int main()
     nameHint.setFillColor(sf::Color(180, 180, 180));
     nameHint.setPosition({ 250.f, 520.f });
 
+    // ===== AUDIO SETUP =====
+    // Menu/name-entry background music.
+    sf::Music menuMusic;
+    bool menuMusicLoaded = menuMusic.openFromFile(
+        "breakzstudios-electronic-uplifting-retro-game-hidden-gem-short-version-210310.mp3");
+    if (menuMusicLoaded)
+    {
+        menuMusic.setLooping(true);
+        menuMusic.setVolume(65.f);
+        menuMusic.play();
+    }
+    else
+    {
+        std::cerr << "Could not load menu music. Check the MP3 file and its path.\n";
+    }
+
+    // Ghost lane warning sound.
+    sf::SoundBuffer laneSoundBuffer;
+    bool laneSoundLoaded = laneSoundBuffer.loadFromFile("pakad-mc.mp3");
+    if (!laneSoundLoaded)
+        std::cerr << "Could not load pakad-mc.mp3. Check the file and its path.\n";
+    sf::Sound laneWarningSound(laneSoundBuffer);
+
+    // Pac-Man death sound.
+    sf::SoundBuffer deathSoundBuffer;
+    bool deathSoundLoaded = deathSoundBuffer.loadFromFile("ghost3.mp3.mpeg");
+    if (!deathSoundLoaded)
+        std::cerr << "Could not load ghost3.mp3.mpeg. Check the file and its path.\n";
+    sf::Sound deathSound(deathSoundBuffer);
+
+    // Prevent the lane warning from restarting every frame while a ghost
+    // remains in the same unobstructed row or column as Pac-Man.
+    bool ghostLaneWasActive = false;
+    // ===== END AUDIO SETUP =====
+
     while (window.isOpen() && !nameEntered)
     {
         while (const std::optional event = window.pollEvent())
@@ -944,6 +1029,9 @@ int main()
         window.draw(nameHint);
         window.display();
     }
+
+    // The menu/name-entry music stops as soon as the game starts.
+    menuMusic.stop();
 
     if (playerName.empty()) playerName = "PLAYER";
     achLoad(playerName);
@@ -1405,6 +1493,15 @@ int main()
                         }
                         else if (!orbInvincible())
                         {
+                            // Play the death sound only when Pac-Man actually loses a life.
+                            laneWarningSound.stop();
+                            ghostLaneWasActive = false;
+                            if (deathSoundLoaded)
+                            {
+                                deathSound.stop();
+                                deathSound.play();
+                            }
+
                             // koi orb active nahi: pehle wala lives wala code (bilkul wese hi)
                             Player1.lives--;                         // lose one life
                             Player1.sprite.setPosition({ 54, 846 }); // pac-man goes back to start
@@ -1417,6 +1514,34 @@ int main()
                         // agar invincible chal raha hai to kuch nahi hota
                     }
                 }
+
+                // ===== GHOST ENTERS PAC-MAN'S LANE AUDIO WARNING =====
+                // Check active, living ghosts after their movement for this frame.
+                bool ghostInPacmanLane = false;
+                if (has_the_run_started && Player1.lives > 0)
+                {
+                    for (int i = 0; i < ghostCount; i++)
+                    {
+                        if (!gh[i]->alive || gt < rel[i])
+                            continue;
+
+                        if (ghostSharesClearLane(pos, gh[i]->sprite.getPosition()))
+                        {
+                            ghostInPacmanLane = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Play once when a ghost enters the lane. It will be allowed
+                // to play again only after all ghosts leave Pac-Man's lane.
+                if (ghostInPacmanLane && !ghostLaneWasActive && laneSoundLoaded)
+                {
+                    laneWarningSound.stop();
+                    laneWarningSound.play();
+                }
+                ghostLaneWasActive = ghostInPacmanLane;
+                // ===== END GHOST LANE AUDIO WARNING =====
 
                 // ===== GRAPE: extra life every 5 minutes (5.10) =====
                 // Done by MUHAMMAD KHIZAR REHMAN
