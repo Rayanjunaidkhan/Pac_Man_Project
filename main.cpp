@@ -72,6 +72,8 @@ int  orbRow[ORB_COUNT] = { 1, 1, 13, 23 };
 int  orbCol[ORB_COUNT] = { 1, 23, 12, 23 };
 int  orbType[ORB_COUNT] = { 1, 2, 3, 1 };    // 1 = speed, 2 = invincible, 3 = kill-ghost
 bool orbOn[ORB_COUNT] = { true, true, true, true };
+const float ORB_RESPAWN_TIME = 60.f;
+float orbRespawnTimer[ORB_COUNT] = { 0.f, 0.f, 0.f, 0.f };
 
 const float SPEED_TIME = 10.f;
 const float INVINCIBLE_TIME = 10.f;
@@ -97,11 +99,25 @@ sf::Color orbColor(int type)
 void orbsUpdate(float dt)
 {
     if (speedTimer > 0)
-        speedTimer -= dt;
+        speedTimer = std::max(0.f, speedTimer - dt);
     if (invTimer > 0)
-        invTimer -= dt;
+        invTimer = std::max(0.f, invTimer - dt);
     if (killTimer > 0)
-        killTimer -= dt;
+        killTimer = std::max(0.f, killTimer - dt);
+
+    // Each collected power-up orb respawns 60 seconds after it was collected.
+    for (int o = 0; o < ORB_COUNT; o++)
+    {
+        if (!orbOn[o] && orbRespawnTimer[o] > 0.f)
+        {
+            orbRespawnTimer[o] -= dt;
+            if (orbRespawnTimer[o] <= 0.f)
+            {
+                orbRespawnTimer[o] = 0.f;
+                orbOn[o] = true;
+            }
+        }
+    }
 }
 float orbSpeedMultiplier()
 {
@@ -127,6 +143,7 @@ int orbsPickup(sf::Vector2f pos)
         if (dx * dx + dy * dy < 18.f * 18.f)
         {
             orbOn[o] = false;
+            orbRespawnTimer[o] = ORB_RESPAWN_TIME;
             if (orbType[o] == 1) speedTimer = SPEED_TIME;
             else if (orbType[o] == 2) invTimer = INVINCIBLE_TIME;
             else killTimer = KILL_TIME;
@@ -142,8 +159,13 @@ void orbsReset(bool respawnOrbs)
     invTimer = 0;
     killTimer = 0;
     if (respawnOrbs)
+    {
         for (int o = 0; o < ORB_COUNT; o++)
+        {
             orbOn[o] = true;
+            orbRespawnTimer[o] = 0.f;
+        }
+    }
 }
 
 void orbsDraw(sf::RenderWindow& window, float t)
@@ -960,6 +982,16 @@ int main()
     nameHint.setPosition({ 250.f, 520.f });
 
     // ===== AUDIO SETUP =====
+    // Pellet-eating sound. It is retriggered whenever Pac-Man collects a pellet.
+    sf::SoundBuffer pelletSoundBuffer;
+    bool pelletSoundLoaded = pelletSoundBuffer.loadFromFile(
+        "Pacman+-+Eating+(Sound+Effect).mp3");
+    sf::Sound pelletSound(pelletSoundBuffer);
+    pelletSound.setVolume(50.f); // 50% volume
+    if (!pelletSoundLoaded)
+        std::cerr << "Could not load Pacman+-+Eating+(Sound+Effect).mp3. "
+        << "Check the file and its path.\n";
+
     // Menu/name-entry background music.
     sf::Music menuMusic;
     bool menuMusicLoaded = menuMusic.openFromFile(
@@ -975,23 +1007,115 @@ int main()
         std::cerr << "Could not load menu music. Check the MP3 file and its path.\n";
     }
 
-    // Ghost lane warning sound.
-    sf::SoundBuffer laneSoundBuffer;
-    bool laneSoundLoaded = laneSoundBuffer.loadFromFile("pakad-mc.mp3");
-    if (!laneSoundLoaded)
-        std::cerr << "Could not load pakad-mc.mp3. Check the file and its path.\n";
-    sf::Sound laneWarningSound(laneSoundBuffer);
+    // Chase/lane-warning playlist. The sounds play in this order and then
+    // the playlist starts again from the first sound:
+    // pakad-mc.mp3 -> aree-cid.mp3 -> cid-maiya-chood.mp3
+    // -> cid-aak-bar-mil-jabeta.mp3 -> repeat.
+    sf::SoundBuffer laneSoundBuffer0;
+    sf::SoundBuffer laneSoundBuffer1;
+    sf::SoundBuffer laneSoundBuffer2;
+    sf::SoundBuffer laneSoundBuffer3;
 
-    // Pac-Man death sound.
-    sf::SoundBuffer deathSoundBuffer;
-    bool deathSoundLoaded = deathSoundBuffer.loadFromFile("ghost3.mp3.mpeg");
-    if (!deathSoundLoaded)
-        std::cerr << "Could not load ghost3.mp3.mpeg. Check the file and its path.\n";
-    sf::Sound deathSound(deathSoundBuffer);
+    bool laneSoundLoaded[4] = {
+        laneSoundBuffer0.loadFromFile("pakad-mc.mp3"),
+        laneSoundBuffer1.loadFromFile("aree-cid.mp3"),
+        laneSoundBuffer2.loadFromFile("cid-maiya-chood.mp3"),
+        laneSoundBuffer3.loadFromFile("cid-aak-bar-mil-jabeta.mp3")
+    };
+
+    sf::Sound laneWarningSound0(laneSoundBuffer0);
+    sf::Sound laneWarningSound1(laneSoundBuffer1);
+    sf::Sound laneWarningSound2(laneSoundBuffer2);
+    sf::Sound laneWarningSound3(laneSoundBuffer3);
+    sf::Sound* laneWarningSounds[4] = {
+        &laneWarningSound0, &laneWarningSound1,
+        &laneWarningSound2, &laneWarningSound3
+    };
+
+    const char* laneSoundFiles[4] = {
+        "pakad-mc.mp3", "aree-cid.mp3",
+        "cid-maiya-chood.mp3", "cid-aak-bar-mil-jabeta.mp3"
+    };
+    for (int i = 0; i < 4; i++)
+        if (!laneSoundLoaded[i])
+            std::cerr << "Could not load " << laneSoundFiles[i]
+            << ". Check the file and its path.\n";
+
+    // Game-over/death playlist. The existing death sound remains first,
+    // followed by the two new sounds, then the playlist repeats:
+    // ghost3.mp3.mpeg -> cid-acp-pradhuman-fasi.mp3
+    // -> cid-ke-bakchodi.mp3 -> repeat.
+    sf::SoundBuffer deathSoundBuffer0;
+    sf::SoundBuffer deathSoundBuffer1;
+    sf::SoundBuffer deathSoundBuffer2;
+
+    bool deathSoundLoaded[3] = {
+        deathSoundBuffer0.loadFromFile("ghost3.mp3.mpeg"),
+        deathSoundBuffer1.loadFromFile("cid-acp-pradhuman-fasi.mp3"),
+        deathSoundBuffer2.loadFromFile("cid-ke-bakchodi.mp3")
+    };
+
+    sf::Sound deathSound0(deathSoundBuffer0);
+    sf::Sound deathSound1(deathSoundBuffer1);
+    sf::Sound deathSound2(deathSoundBuffer2);
+    sf::Sound* deathSounds[3] = {
+        &deathSound0, &deathSound1, &deathSound2
+    };
+
+    const char* deathSoundFiles[3] = {
+        "ghost3.mp3.mpeg", "cid-acp-pradhuman-fasi.mp3",
+        "cid-ke-bakchodi.mp3"
+    };
+    for (int i = 0; i < 3; i++)
+        if (!deathSoundLoaded[i])
+            std::cerr << "Could not load " << deathSoundFiles[i]
+            << ". Check the file and its path.\n";
+
+    // Each event advances its own playlist independently. Unavailable files
+    // are skipped, while successfully loaded files retain the requested order.
+    int nextLaneSound = 0;
+    int nextDeathSound = 0;
+    auto playNextSound = [](sf::Sound* sounds[], const bool loaded[],
+        int soundCount, int& nextIndex)
+        {
+            for (int attempt = 0; attempt < soundCount; attempt++)
+            {
+                int index = nextIndex;
+                nextIndex = (nextIndex + 1) % soundCount;
+
+                if (!loaded[index])
+                    continue;
+
+                // Keep sounds within the same playlist from overlapping.
+                for (int i = 0; i < soundCount; i++)
+                    sounds[i]->stop();
+
+                sounds[index]->play();
+                return;
+            }
+        };
 
     // Prevent the lane warning from restarting every frame while a ghost
     // remains in the same unobstructed row or column as Pac-Man.
     bool ghostLaneWasActive = false;
+
+    // Do not start the pellet sound while another audio track/effect is playing.
+    // This includes menu music, chase warnings, and death sounds.
+    auto anotherAudioIsPlaying = [&]()
+        {
+            if (menuMusic.getStatus() == sf::SoundSource::Status::Playing)
+                return true;
+
+            for (int i = 0; i < 4; i++)
+                if (laneWarningSounds[i]->getStatus() == sf::SoundSource::Status::Playing)
+                    return true;
+
+            for (int i = 0; i < 3; i++)
+                if (deathSounds[i]->getStatus() == sf::SoundSource::Status::Playing)
+                    return true;
+
+            return false;
+        };
     // ===== END AUDIO SETUP =====
 
     while (window.isOpen() && !nameEntered)
@@ -1186,6 +1310,13 @@ int main()
                             if (dx * dx + dy * dy < 15.f * 15.f)
                             {
                                 maze[r * COLS + c] = 0;
+                                if (pelletSoundLoaded && !anotherAudioIsPlaying())
+                                {
+                                    // Pellet audio is only allowed when no other
+                                    // audio is playing. It is kept at 50% volume.
+                                    pelletSound.stop();
+                                    pelletSound.play();
+                                }
                                 Player1.score += 10 * mult;
                                 got++;                        // Done by MUHAMMAD KHIZAR REHMAN: count this pellet
                                 rs[r * COLS + c] = rsT;       // Done by MUHAMMAD KHIZAR REHMAN: it will come back later
@@ -1493,14 +1624,17 @@ int main()
                         }
                         else if (!orbInvincible())
                         {
+                            // Stop pellet audio immediately when Pac-Man dies.
+                            // The death sound takes priority over every other effect.
+                            pelletSound.stop();
+
                             // Play the death sound only when Pac-Man actually loses a life.
-                            laneWarningSound.stop();
+                            for (int soundIndex = 0; soundIndex < 4; soundIndex++)
+                                laneWarningSounds[soundIndex]->stop();
                             ghostLaneWasActive = false;
-                            if (deathSoundLoaded)
-                            {
-                                deathSound.stop();
-                                deathSound.play();
-                            }
+
+                            // Play the next sound in the game-over playlist.
+                            playNextSound(deathSounds, deathSoundLoaded, 3, nextDeathSound);
 
                             // koi orb active nahi: pehle wala lives wala code (bilkul wese hi)
                             Player1.lives--;                         // lose one life
@@ -1535,10 +1669,14 @@ int main()
 
                 // Play once when a ghost enters the lane. It will be allowed
                 // to play again only after all ghosts leave Pac-Man's lane.
-                if (ghostInPacmanLane && !ghostLaneWasActive && laneSoundLoaded)
+                if (ghostInPacmanLane && !ghostLaneWasActive)
                 {
-                    laneWarningSound.stop();
-                    laneWarningSound.play();
+                    // Chase warning has priority: interrupt pellet-eating audio.
+                    pelletSound.stop();
+
+                    // Play the next sound in the chase playlist whenever a
+                    // ghost newly enters Pac-Man's unobstructed row or column.
+                    playNextSound(laneWarningSounds, laneSoundLoaded, 4, nextLaneSound);
                 }
                 ghostLaneWasActive = ghostInPacmanLane;
                 // ===== END GHOST LANE AUDIO WARNING =====
