@@ -1,14 +1,14 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
-#include <fstream> // done by hmza
-#include <string> //done by hmza
-#include<optional> // Abd
+#include <fstream>
+#include <string>
+# include<optional> // Abd
 #include <iostream>
 #include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
 struct Player
 {
     sf::Sprite sprite;
-    int lives = 3;
+    int lives = 3;   // Done by MUHAMMAD KHIZAR REHMAN: only 1 life as in the proposal (was 3)
     int score = -10;
     int current_state = 0; // 0 for normal, 1 for eating ghost mode, 2 for faster speed
     int speed = 120;
@@ -36,7 +36,7 @@ const int COLS = 25;   // how many squares across
 const int ROWS = 25;   // how many squares down
 
 int maze[COLS * ROWS] = {
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1, // row 0
+1,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1, // row 0
 1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 1
 1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,1,0,1,1,1,1,0,1, // row 2
 1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1, // row 3
@@ -60,7 +60,7 @@ int maze[COLS * ROWS] = {
 1,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,1, // row 21
 1,0,1,1,1,1,0,1,1,1,1,0,0,0,1,1,1,1,0,1,1,1,1,0,1, // row 22
 1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 23
-1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1  // row 24
+1,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1  // row 24
 };
 // This is abdullah ameer code for making orbits and speeding process
 // ===== ORB CODE (5.1 Multiple Power-Up Orbs) =====
@@ -269,8 +269,23 @@ void addScore(int score, int seconds)
 void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
 {
     sf::Text title(font, "TOP 5 SCORES", 40);
-    title.setPosition({ 400.f, 550.f });
+    sf::FloatRect tb = title.getLocalBounds();
+    title.setOrigin({ tb.position.x + tb.size.x / 2.f, 0.f });   // horizontal centre
+    title.setPosition({ 600.f, 460.f });
     window.draw(title);
+
+    // find the widest row so the whole list is centred as one block
+    float maxW = 0.f;
+    for (int i = 0; i < savedCount; i++)
+    {
+        std::string line = std::to_string(i + 1) + ".  " +
+            std::to_string(topScores[i]) + " pts   " +
+            std::to_string(topTimes[i]) + " sec";
+        sf::Text row(font, line, 30);
+        float w = row.getLocalBounds().size.x;
+        if (w > maxW)
+            maxW = w;
+    }
 
     for (int i = 0; i < savedCount; i++)
     {
@@ -278,7 +293,7 @@ void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
             std::to_string(topScores[i]) + " pts   " +
             std::to_string(topTimes[i]) + " sec";
         sf::Text row(font, line, 30);
-        row.setPosition({ 400.f, 600.f + i * 40.f });
+        row.setPosition({ 600.f - maxW / 2.f, 520.f + i * 40.f });
         window.draw(row);
     }
 }
@@ -393,10 +408,14 @@ int main()
     game_over_screen.setFillColor(sf::Color(0, 0, 0, 150));
 
     sf::Text game_over_text(font, "GAME OVER", 200);
-    game_over_text.setPosition({ 200,300 });
+    sf::FloatRect go_b = game_over_text.getLocalBounds();
+    game_over_text.setOrigin({ go_b.position.x + go_b.size.x / 2.f, 0.f });   // horizontal centre
+    game_over_text.setPosition({ 600.f, 200.f });
 
     sf::Text game_over_text_additional(font, "Press Space to start again", 50);
-    game_over_text_additional.setPosition({ 330, 500 });
+    sf::FloatRect goa_b = game_over_text_additional.getLocalBounds();
+    game_over_text_additional.setOrigin({ goa_b.position.x + goa_b.size.x / 2.f, 0.f });
+    game_over_text_additional.setPosition({ 600.f, 400.f });
 
 
 
@@ -404,6 +423,7 @@ int main()
     sf::Clock clock, timer_for_texture_change;
     float half = 15;         // half of Pac-Man's size (40 / 2) //another change here half=15 from now to make pac-man movement checking defined.
     char direction = ' ';
+    char wanted = ' ';       // direction the player asked for (turn happens at the next tile centre)
     bool has_the_run_started = false, current_texture = false;
     bool is_game_paused = false;
 
@@ -440,7 +460,7 @@ int main()
     int cc[8] = { 23, 1, 23, 1, 23, 1, 23, 1 };     // corner each ghost runs to (column)
     int dR[8] = { -1, 0, 1, 0,-1, 0, 1, 0 };      // the 4 ways: up, left, down, right
     int dC[8] = { 0, -1, 0, 1, 0, -1, 0, 1 };
-    float rel[8] = { 0, 3, 6, 9,0, 3, 6, 9 };    // seconds before each ghost leaves the house
+    float rel[8] = { 0, 3, 6, 9, 12, 15, 18, 21 };    // Done by MUHAMMAD KHIZAR REHMAN: every ghost has its own release time
     float gt = 0, mt = 0;             // game time, mode timer
     bool scat = false;                // false = chase, true = run to corner
 
@@ -449,11 +469,30 @@ int main()
     bool rst = false;                 // true = put ghosts back in the house
     int hr[8] = { 11, 10, 10, 11,11, 10, 10, 11 };   // home tile of each ghost (row)
     int hc[8] = { 11, 13, 11, 13,11, 13, 11, 13 };   // home tile of each ghost (column)
+
+    // ===== GATES SETUP (5.6) =====
+    // Done by MUHAMMAD KHIZAR REHMAN
+    int er = 23, ec = 1;       // entry gate tile (lower left corner)
+    int xr = 1, xc = 23;       // exit gate tile (upper right corner)
+    int got = 0;               // pellets eaten so far this level
+    int tot = 0;               // pellets that were on the stage at the start
+    for (int i = 0; i < COLS * ROWS; i++)
+        if (maze[i] == 2)
+            tot++;
+    float rs[COLS * ROWS] = { 0 };   // respawn countdown of each eaten pellet
+    float rsT = 30.f;                // an eaten pellet comes back after 30 sec
+    sf::RectangleShape gsh({ 36.f, 36.f });
+    gsh.setOutlineThickness(3.f);
+    gsh.setOutlineColor(sf::Color::White);
+    sf::Text gtx(font, "", 25);
+    gtx.setFillColor(sf::Color::White);
+    gtx.setPosition({ 920.f, 600.f });
+
     // ===== GRAPE SETUP (5.10 extra life) =====
     // Done by MUHAMMAD KHIZAR REHMAN
     bool gv = false;        // is the grape on the map right now?
     float gtm = 0;          // seconds passed since the last grape spawn
-    float gsp = 5;        // spawn every 300 sec (5 min)
+    float gsp = 300;        // spawn every 300 sec (5 min)
     sf::Texture grape_tex("grape.png");         // grape picture (hmza: image instead of the purple circle)
     sf::Sprite grp(grape_tex);
     grp.setScale({ 30.f / grape_tex.getSize().x, 30.f / grape_tex.getSize().y });   // 30 x 30 pixels on screen
@@ -497,6 +536,8 @@ int main()
             {
                 // this variable stores the time between 2 movement key presses
                 float dt = clock.restart().asSeconds();
+                if (dt > 0.05f)
+                    dt = 0.05f;   // Done by MUHAMMAD KHIZAR REHMAN: stops the big jump after pause
 
                 // this variable stores the total time of the game run: (leaderboard code by hmza):
                 run_time += dt;
@@ -529,48 +570,66 @@ int main()
                 if (levelBanner > 0)
                     levelBanner -= dt;
 
-                // changes direction if movement key pressed
+                // ===== GRID-LOCKED MOVEMENT (pac-man moves only along a single row / column) =====
+                // keys only set the WANTED direction
                 if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up))
-                    direction = 'U';
+                    wanted = 'U';
                 else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
-                    direction = 'L';
+                    wanted = 'L';
                 else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down))
-                    direction = 'D';
+                    wanted = 'D';
                 else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
-                    direction = 'R';
+                    wanted = 'R';
 
-                // where he is now, and where he WANTS to go
                 sf::Vector2f pos = Player1.sprite.getPosition();
-                float newX = pos.x;
-                float newY = pos.y;
+                float step = Player1.speed * dt * orbSpeedMultiplier();
+                int row = int(pos.y) / CELL;
+                int col = int(pos.x) / CELL;
+                float cx = (col + 0.5f) * CELL;   // centre of current tile
+                float cy = (row + 0.5f) * CELL;
 
-                if (direction == 'U')
+                // turn only if that way is open and pac-man is at the tile centre (reversing is always allowed)
+                if (wanted != ' ' && wanted != direction)
                 {
-                    Player1.sprite.setRotation(sf::degrees(270));
-                    newY -= Player1.speed * dt * orbSpeedMultiplier();
-                    has_the_run_started = true;
+                    bool reverse = (direction == 'U' && wanted == 'D') || (direction == 'D' && wanted == 'U') ||
+                        (direction == 'L' && wanted == 'R') || (direction == 'R' && wanted == 'L');
+                    int tr = row + (wanted == 'D') - (wanted == 'U');
+                    int tc = col + (wanted == 'R') - (wanted == 'L');
+                    bool atCentre = std::abs(pos.x - cx) <= step && std::abs(pos.y - cy) <= step;
+
+                    if (!isWall2(tr, tc) && (reverse || atCentre))
+                    {
+                        if (!reverse)
+                            pos = { cx, cy };          // snap into the new lane
+                        direction = wanted;
+                        has_the_run_started = true;
+                    }
                 }
-                else if (direction == 'L')
+
+                // move along the current lane only
+                float newX = pos.x, newY = pos.y;
+                bool horizontal = (direction == 'L' || direction == 'R');
+
+                if (direction == 'U') { Player1.sprite.setRotation(sf::degrees(270)); newY -= step; }
+                else if (direction == 'L') { Player1.sprite.setRotation(sf::degrees(180)); newX -= step; }
+                else if (direction == 'D') { Player1.sprite.setRotation(sf::degrees(90));  newY += step; }
+                else if (direction == 'R') { Player1.sprite.setRotation(sf::degrees(360)); newX += step; }
+
+                if (direction != ' ')
                 {
-                    Player1.sprite.setRotation(sf::degrees(180));
-                    newX -= Player1.speed * dt * orbSpeedMultiplier();
-                    has_the_run_started = true;
-                }
-                else if (direction == 'D')
-                {
-                    Player1.sprite.setRotation(sf::degrees(90));
-                    newY += Player1.speed * dt * orbSpeedMultiplier();
-                    has_the_run_started = true;
-                }
-                else if (direction == 'R')
-                {
-                    Player1.sprite.setRotation(sf::degrees(360));
-                    newX += Player1.speed * dt * orbSpeedMultiplier();
-                    has_the_run_started = true;
+                    if (canMoveTo(newX, newY, half))
+                        pos = { newX, newY };
+                    else if (horizontal)
+                        pos.x = cx;                    // hit a wall: stop at tile centre
+                    else
+                        pos.y = cy;
+
+                    if (horizontal) pos.y = cy;        // lock to the row
+                    else            pos.x = cx;        // lock to the column
                 }
 
                 // starts the pacman animation if any movement key is pressed
-                if (has_the_run_started == true)
+                if (has_the_run_started)
                 {
                     // write code for changing of texture
                     if (timer_for_texture_change.getElapsedTime().asSeconds() >= 0.3)
@@ -582,15 +641,10 @@ int main()
                             Player1.sprite.setTexture(Player1_texB);
                         timer_for_texture_change.restart();
                     }
-
                 }
-                // only move if the wanted spot is inside the limits
-                if (canMoveTo(newX, pos.y, half))
-                    pos.x = newX;
-                if (canMoveTo(pos.x, newY, half))
-                    pos.y = newY;
 
                 Player1.sprite.setPosition(pos);
+                // ===== END GRID-LOCKED MOVEMENT =====
 
 
                 for (int r = 0; r < ROWS; r++)
@@ -605,19 +659,32 @@ int main()
                             {
                                 maze[r * COLS + c] = 0;
                                 Player1.score += 10 * mult;
+                                got++;                        // Done by MUHAMMAD KHIZAR REHMAN: count this pellet
+                                rs[r * COLS + c] = rsT;       // Done by MUHAMMAD KHIZAR REHMAN: it will come back later
                             }
                         }
                     }
                 }
                 // orbits  and levels speed added by abdullahameer
                 Player1.score += orbsPickup(pos) * mult;
-                // ===== LEVEL UP (6.1, 6.2) =====
-                int dotsLeft = 0;
-                for (int r = 0; r < ROWS; r++)
-                    for (int c = 0; c < COLS; c++)
-                        if (maze[r * COLS + c] == 2) dotsLeft++;
 
-                if (dotsLeft == 0)                              // sab dots khatam = level complete
+                // ===== PELLET RESPAWN + EXIT GATE (5.6) =====
+                // Done by MUHAMMAD KHIZAR REHMAN
+                for (int k = 0; k < COLS * ROWS; k++)
+                {
+                    if (rs[k] > 0)
+                    {
+                        rs[k] -= dt;
+                        if (rs[k] <= 0 && maze[k] == 0)
+                            maze[k] = 2;                  // the pellet is back
+                    }
+                }
+                float qx = pos.x - (xc + 0.5f) * CELL;
+                float qy = pos.y - (xr + 0.5f) * CELL;
+
+                // ===== LEVEL UP (6.1, 6.2) =====
+                // Done by MUHAMMAD KHIZAR REHMAN: the level is now cleared at the open exit gate (was: dotsLeft == 0)
+                if (got >= tot && qx * qx + qy * qy < 18.f * 18.f)
                 {
                     level++;
                     levelSpeed *= 1.10f;                        // ghosts aur Pacman dono tez
@@ -630,8 +697,13 @@ int main()
                     Player1.sprite.setPosition({ 54, 846 });
                     pos = Player1.sprite.getPosition();
                     direction = ' ';
+                    wanted = ' ';
                     orbsReset(true);
                     rst = true;                                 // ghosts wapas house mein
+
+                    got = 0;                                    // Done by MUHAMMAD KHIZAR REHMAN: new level, new pellet count
+                    for (int k = 0; k < COLS * ROWS; k++)
+                        rs[k] = 0;
 
                     for (int i = 0; i < 8; i++)                 // sab ghosts zinda aur normal
                     {
@@ -679,7 +751,9 @@ int main()
                         gh[i]->sprite.setPosition({ (hc[i] + 0.5f) * CELL, (hr[i] + 0.5f) * CELL });
                     }
                     // edited by abdullahameer
-                    rel[0] = 0; rel[1] = 3; rel[2] = 6; rel[3] = 9;
+                    // Done by MUHAMMAD KHIZAR REHMAN: reset the release time of ALL 8 ghosts
+                    for (int i = 0; i < 8; i++)
+                        rel[i] = i * 3.f;
                     // done here
                     gt = 0;
                     mt = 0;
@@ -843,8 +917,10 @@ int main()
 
                 // ===== LIFE LOSS: ghost touches pac-man =====
                 // Done by MUHAMMAD KHIZAR REHMAN
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < ghostCount; i++)            // Done by MUHAMMAD KHIZAR REHMAN: all active ghosts (was i < 4)
                 {
+                    if (!gh[i]->alive)
+                        continue;                               // Done by MUHAMMAD KHIZAR REHMAN: dead ghosts can't touch
                     sf::Vector2f q = gh[i]->sprite.getPosition();
                     float ux = q.x - pos.x, uy = q.y - pos.y;
                     //if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
@@ -875,6 +951,7 @@ int main()
                             Player1.lives--;                         // lose one life
                             Player1.sprite.setPosition({ 54, 846 }); // pac-man goes back to start
                             direction = ' ';
+                            wanted = ' ';
                             orbsReset(false);                        // orb ke timers band (sirf yeh ek line nayi hai)
                             rst = true;                              // ghosts go back to the house
                             break;                                   // only one life per hit
@@ -914,6 +991,15 @@ int main()
                     Player1.sprite.setPosition({ 860, 414 });
                 else if (Player1.sprite.getPosition().x >= 882)
                     Player1.sprite.setPosition({ 43, 414 });
+            }
+
+            // top / bottom teleport (the 3-wide gaps in the top and bottom walls, columns 11-13)
+            if (Player1.sprite.getPosition().x >= 396 && Player1.sprite.getPosition().x < 504)
+            {
+                if (Player1.sprite.getPosition().y <= 41)
+                    Player1.sprite.setPosition({ Player1.sprite.getPosition().x, 860 });
+                else if (Player1.sprite.getPosition().y >= 882)
+                    Player1.sprite.setPosition({ Player1.sprite.getPosition().x, 43 });
             }
 
 
@@ -1013,7 +1099,23 @@ int main()
                     }
                 }
             }
-            // Done by MUHAMMAD KHIZAR REHMAN: draw the grape when it is on the map
+
+            // ===== GATES + SIDEBAR INFO (5.6) + GRAPE DRAW (5.10) =====
+            // Done by MUHAMMAD KHIZAR REHMAN
+            gsh.setPosition({ float(ec * CELL), float(er * CELL) });
+            gsh.setFillColor(sf::Color(0, 150, 255, 140));          // entry gate: blue
+            window.draw(gsh);
+
+            gsh.setPosition({ float(xc * CELL), float(xr * CELL) });
+            if (got >= tot)
+                gsh.setFillColor(sf::Color(50, 255, 80, 160));      // exit open: green
+            else
+                gsh.setFillColor(sf::Color(255, 50, 50, 140));      // exit locked: red
+            window.draw(gsh);
+
+            gtx.setString("Level: " + std::to_string(level) + "\nPellets: " + std::to_string(got) + "/" + std::to_string(tot) + "\nEXIT: " + (got >= tot ? "OPEN" : "LOCKED"));
+            window.draw(gtx);
+
             if (gv)
                 window.draw(grp);
 
@@ -1077,6 +1179,7 @@ int main()
                 Player1.sprite.setPosition({ 54, 846 });
                 clock.restart();
                 direction = ' ';
+                wanted = ' ';
                 run_time = 0;                           // new run starts from zero (leaderboard code by hmza)
                 score_saved = false;
                 frenzyOn = false;      // frenzy resets on restart (hmza)
@@ -1084,8 +1187,12 @@ int main()
                 // allow the next game over to save again
                  // abdullahameer code
                 orbsReset(true);
-                orbsReset(true);
-                gv = false;   // Done by MUHAMMAD KHIZAR REHMAN: grape resets on restart
+
+                // Done by MUHAMMAD KHIZAR REHMAN: gates and grape start fresh
+                got = 0;
+                for (int k = 0; k < COLS * ROWS; k++)
+                    rs[k] = 0;
+                gv = false;
                 gtm = 0;
 
                 // ===== LEVEL aur GHOSTS reset (abdullahameer) =====
