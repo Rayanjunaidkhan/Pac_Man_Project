@@ -71,8 +71,8 @@ int  orbCol[ORB_COUNT] = { 1, 23, 12, 23 };
 int  orbType[ORB_COUNT] = { 1, 2, 3, 1 };    // 1 = speed, 2 = invincible, 3 = kill-ghost
 bool orbOn[ORB_COUNT] = { true, true, true, true };
 
-const float SPEED_TIME = 5.f;
-const float INVINCIBLE_TIME = 7.f;
+const float SPEED_TIME = 10.f;
+const float INVINCIBLE_TIME = 10.f;
 const float KILL_TIME = 10.f;
 const float SPEED_BOOST = 1.6f;
 
@@ -177,7 +177,345 @@ void orbsDrawHud(sf::RenderWindow& window, const sf::Font& font)
     window.draw(text);
 }
 // ===== END OF ORB CODE =====
+// abdillahameer added achievement board
+// ===== ACHIEVEMENTS + TOP 3 PLAYERS (Abdullah Ameer) =====
+const int   ACH_COUNT = 5;
+const float RECORD_TIME = 120.f;
+const float ACH_X = -280.f;
+const float ACH_Y = 330.f;
+const int   LEVEL_TOTAL = 5;
+const float LB_X = -280.f;
+const float LB_Y = 60.f;
+const int   LB_MAX = 50;
 
+const char* achName[ACH_COUNT] = { "SCORE 500", "SCORE 1500", "SCORE 3000", "GHOST HUNTER", "SPEED RUNNER" };
+bool  achDone[ACH_COUNT] = { false, false, false, false, false };
+float achPopupTimer = 0;
+std::string achPopupText = "";
+std::string achPlayer = "PLAYER";
+float levelStartTime = 0;
+// abdullahameer added achievemts board
+void lbUpdate(const std::string& name, int count);   // forward declaration
+
+int achCount()
+{
+    int c = 0;
+    for (int i = 0; i < ACH_COUNT; i++)
+        if (achDone[i]) c++;
+    return c;
+}
+void achSave()
+{
+    std::ofstream f("ach_" + achPlayer + ".txt");
+    for (int i = 0; i < ACH_COUNT; i++)
+        f << (achDone[i] ? 1 : 0) << " ";
+}
+
+void achLoad(const std::string& name)
+{
+    achPlayer = name;
+    for (int i = 0; i < ACH_COUNT; i++)
+        achDone[i] = false;
+    std::ifstream f("ach_" + achPlayer + ".txt");
+    for (int i = 0; i < ACH_COUNT; i++)
+    {
+        int v = 0;
+        if (f >> v) achDone[i] = (v == 1);
+    }
+}
+
+void achUnlock(int i)
+{
+    if (achDone[i]) return;
+    achDone[i] = true;
+    achPopupText = std::string("UNLOCKED: ") + achName[i];
+    achPopupTimer = 3.f;
+    achSave();
+    lbUpdate(achPlayer, achCount());
+}
+
+void achCheckScore(int score)
+{
+    if (score >= 500)  achUnlock(0);
+    if (score >= 1500) achUnlock(1);
+    if (score >= 3000) achUnlock(2);
+}
+
+void achGhostEaten() { achUnlock(3); }
+
+void achLevelCleared(float seconds)
+{
+    if (seconds <= RECORD_TIME) achUnlock(4);
+}
+
+void achUpdate(float dt)
+{
+    if (achPopupTimer > 0) achPopupTimer -= dt;
+}
+
+void achDrawOld(sf::RenderWindow& window, const sf::Font& font)
+{
+    sf::Text who(font, "PLAYER: " + achPlayer, 22);
+    who.setFillColor(sf::Color::White);
+    who.setPosition({ ACH_X, ACH_Y });
+    window.draw(who);
+
+    sf::Text title(font, "ACHIEVEMENTS", 24);
+    title.setFillColor(sf::Color::Yellow);
+    title.setPosition({ ACH_X, ACH_Y + 26.f });
+    window.draw(title);
+
+    for (int i = 0; i < ACH_COUNT; i++)
+    {
+        std::string line = std::string(achDone[i] ? "[X] " : "[ ] ") + achName[i];
+        sf::Text t(font, line, 20);
+        t.setFillColor(achDone[i] ? sf::Color(255, 215, 0) : sf::Color(160, 160, 160));
+        t.setPosition({ ACH_X, ACH_Y + 58.f + i * 22.f });
+        window.draw(t);
+    }
+
+    if (achPopupTimer > 0)
+    {
+        sf::Text pop(font, achPopupText, 36);
+        pop.setFillColor(sf::Color::Yellow);
+        pop.setOutlineThickness(3.f);
+        pop.setOutlineColor(sf::Color::Black);
+        pop.setPosition({ 200.f, 20.f });
+        window.draw(pop);
+    }
+}
+
+std::string lbName[LB_MAX];
+int lbLevels[LB_MAX];
+int lbCount = 0;
+
+void lbSave()
+{
+    std::ofstream f("top_players.txt");
+    for (int i = 0; i < lbCount; i++)
+        f << lbName[i] << " " << lbLevels[i] << "\n";
+}
+
+void lbSort()
+{
+    for (int i = 0; i < lbCount - 1; i++)
+    {
+        for (int j = 0; j < lbCount - 1 - i; j++)
+        {
+            if (lbLevels[j] < lbLevels[j + 1])
+            {
+                int t = lbLevels[j];
+                lbLevels[j] = lbLevels[j + 1];
+                lbLevels[j + 1] = t;
+
+                std::string s = lbName[j];
+                lbName[j] = lbName[j + 1];
+                lbName[j + 1] = s;
+            }
+        }
+    }
+}
+// edit by abd
+void lbLoad()
+{
+    lbCount = 0;
+    std::ifstream f("top_players.txt");
+    while (lbCount < LB_MAX && f >> lbName[lbCount] >> lbLevels[lbCount])
+        lbCount++;
+
+    for (int i = 0; i < lbCount; i++)
+    {
+        std::ifstream a("ach_" + lbName[i] + ".txt");
+        if (!a) continue;
+        int c = 0, v = 0;
+        while (c < ACH_COUNT && a >> v)
+        {
+            if (v == 1) c++;
+        }
+        lbLevels[i] = c;
+    }
+    lbSort();
+}
+void lbUpdate(const std::string& name, int levels)
+{
+    if (levels > ACH_COUNT)
+        levels = ACH_COUNT;
+
+    int idx = -1;
+    for (int i = 0; i < lbCount; i++)
+        if (lbName[i] == name) { idx = i; break; }
+
+    if (idx == -1)
+    {
+        if (lbCount >= LB_MAX) return;
+        idx = lbCount++;
+        lbName[idx] = name;
+        lbLevels[idx] = levels;
+    }
+    else if (levels > lbLevels[idx])
+        lbLevels[idx] = levels;
+
+    lbSort();
+    lbSave();
+}
+
+void lbDrawOld(sf::RenderWindow& window, const sf::Font& font)
+{
+    sf::Text title(font, "TOP 3 PLAYERS", 22);
+    title.setFillColor(sf::Color::Yellow);
+    title.setPosition({ LB_X, LB_Y });
+    window.draw(title);
+
+    for (int i = 0; i < 3 && i < lbCount; i++)
+    {
+        std::string line = std::to_string(i + 1) + ". " + lbName[i] + "  " +
+            std::to_string(lbLevels[i]) + "/" + std::to_string(LEVEL_TOTAL);
+        sf::Text t(font, line, 20);
+        t.setFillColor(i == 0 ? sf::Color(255, 215, 0) : sf::Color::White);
+        t.setPosition({ LB_X, LB_Y + 26.f + i * 24.f });
+        window.draw(t);
+    }
+}
+// better presentable form by abdullahameer
+// ===== PRETTY BOARDS (presentable look) =====
+void panelText(sf::RenderWindow& w, const sf::Font& font, const std::string& s,
+    unsigned int size, sf::Color col, float x, float y)
+{
+    sf::Text t(font, s, size);
+    t.setFillColor(col);
+    t.setPosition({ x, y });
+    w.draw(t);
+}
+
+void panelTextCentered(sf::RenderWindow& w, const sf::Font& font, const std::string& s,
+    unsigned int size, sf::Color col, float cx, float y)
+{
+    sf::Text t(font, s, size);
+    t.setFillColor(col);
+    sf::FloatRect b = t.getLocalBounds();
+    t.setOrigin({ b.position.x + b.size.x / 2.f, 0.f });
+    t.setPosition({ cx, y });
+    w.draw(t);
+}
+
+void panelBox(sf::RenderWindow& w, float x, float y, float width, float height)
+{
+    sf::RectangleShape r({ width, height });
+    r.setPosition({ x, y });
+    r.setFillColor(sf::Color(0, 0, 0, 190));
+    r.setOutlineThickness(2.f);
+    r.setOutlineColor(sf::Color(255, 215, 0));
+    w.draw(r);
+}
+
+void panelLine(sf::RenderWindow& w, float x, float y, float width)
+{
+    sf::RectangleShape r({ width, 2.f });
+    r.setPosition({ x, y });
+    r.setFillColor(sf::Color(255, 215, 0, 160));
+    w.draw(r);
+}
+
+void lbDraw(sf::RenderWindow& window, const sf::Font& font)
+{
+    const float px = -290.f, pw = 280.f, top = 40.f;
+    sf::Color medal[3] = { sf::Color(255, 215, 0), sf::Color(200, 200, 215), sf::Color(205, 127, 50) };
+
+    panelBox(window, px, top, pw, 200.f);
+    panelTextCentered(window, font, "TOP 3 PLAYERS", 26, sf::Color::Yellow, px + pw / 2.f, top + 8.f);
+    panelLine(window, px + 10.f, top + 44.f, pw - 20.f);
+
+    for (int i = 0; i < 3; i++)
+    {
+        float ry = top + 56.f + i * 46.f;
+        bool has = (i < lbCount);
+
+        sf::CircleShape badge(13.f);
+        badge.setPosition({ px + 12.f, ry + 4.f });
+        badge.setFillColor(has ? medal[i] : sf::Color(70, 70, 70));
+        window.draw(badge);
+        panelTextCentered(window, font, std::to_string(i + 1), 18, sf::Color::Black, px + 25.f, ry + 6.f);
+
+        if (!has)
+        {
+            panelText(window, font, "---", 22, sf::Color(120, 120, 120), px + 48.f, ry + 4.f);
+            continue;
+        }
+
+        panelText(window, font, lbName[i], 22, i == 0 ? sf::Color(255, 215, 0) : sf::Color::White, px + 48.f, ry);
+
+        for (int s = 0; s < ACH_COUNT; s++)
+        {
+            sf::RectangleShape seg({ 18.f, 8.f });
+            seg.setPosition({ px + 48.f + s * 22.f, ry + 30.f });
+            seg.setFillColor(s < lbLevels[i] ? medal[i] : sf::Color(70, 70, 70));
+            window.draw(seg);
+        }
+
+        panelText(window, font, std::to_string(lbLevels[i]) + "/" + std::to_string(ACH_COUNT),
+            20, sf::Color::White, px + pw - 52.f, ry + 4.f);
+    }
+}
+
+void achDraw(sf::RenderWindow& window, const sf::Font& font)
+{
+    const float px = -290.f, pw = 280.f, top = 270.f;
+    const char* achDesc[ACH_COUNT] = { "Reach 500 points", "Reach 1500 points", "Reach 3000 points",
+                                       "Eat a ghost (red orb)", "Clear a level < 2 min" };
+
+    int unlocked = 0;
+    for (int i = 0; i < ACH_COUNT; i++)
+        if (achDone[i]) unlocked++;
+
+    panelBox(window, px, top, pw, 330.f);
+    panelTextCentered(window, font, "ACHIEVEMENTS", 26, sf::Color::Yellow, px + pw / 2.f, top + 8.f);
+    panelLine(window, px + 10.f, top + 44.f, pw - 20.f);
+
+    panelText(window, font, "PLAYER: " + achPlayer, 18, sf::Color::White, px + 12.f, top + 52.f);
+    panelText(window, font, std::to_string(unlocked) + "/" + std::to_string(ACH_COUNT),
+        18, sf::Color(255, 215, 0), px + pw - 50.f, top + 52.f);
+
+    sf::RectangleShape barBack({ pw - 24.f, 8.f });
+    barBack.setPosition({ px + 12.f, top + 80.f });
+    barBack.setFillColor(sf::Color(70, 70, 70));
+    window.draw(barBack);
+    sf::RectangleShape barFill({ (pw - 24.f) * unlocked / ACH_COUNT, 8.f });
+    barFill.setPosition({ px + 12.f, top + 80.f });
+    barFill.setFillColor(sf::Color(255, 215, 0));
+    window.draw(barFill);
+
+    for (int i = 0; i < ACH_COUNT; i++)
+    {
+        float ry = top + 100.f + i * 44.f;
+        bool done = achDone[i];
+
+        sf::RectangleShape check({ 20.f, 20.f });
+        check.setPosition({ px + 14.f, ry + 4.f });
+        check.setFillColor(done ? sf::Color(255, 215, 0) : sf::Color(0, 0, 0, 0));
+        check.setOutlineThickness(2.f);
+        check.setOutlineColor(done ? sf::Color(255, 215, 0) : sf::Color(150, 150, 150));
+        window.draw(check);
+        if (done)
+            panelTextCentered(window, font, "X", 16, sf::Color::Black, px + 24.f, ry + 5.f);
+
+        panelText(window, font, achName[i], 20,
+            done ? sf::Color(255, 215, 0) : sf::Color(170, 170, 170), px + 44.f, ry);
+        panelText(window, font, achDesc[i], 14,
+            done ? sf::Color(220, 220, 220) : sf::Color(120, 120, 120), px + 44.f, ry + 24.f);
+    }
+
+    if (achPopupTimer > 0)   // "UNLOCKED" popup maze ke upar
+    {
+        sf::Text pop(font, achPopupText, 36);
+        pop.setFillColor(sf::Color::Yellow);
+        pop.setOutlineThickness(3.f);
+        pop.setOutlineColor(sf::Color::Black);
+        pop.setPosition({ 200.f, 20.f });
+        window.draw(pop);
+    }
+}
+// ===== END OF PRETTY BOARDS =====
+// ===== END OF ACHIEVEMENTS + TOP 3 PLAYERS =====
 
 // ===== ADDING THESE TWO FUNCTIONS HERE COZ THEY ARE FOR MOVEMENT+DEFINED BOUNDARIES =====
 
@@ -301,8 +639,11 @@ void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
 int main()
 {
     // window
-    sf::RenderWindow window(sf::VideoMode({ 1200, 900 }), "Pac Man Game");
+    sf::RenderWindow window(sf::VideoMode({ 1500, 900 }), "Pac Man Game");
     window.setFramerateLimit(60);
+    // added by abd for left achievement board
+    sf::View gameView(sf::FloatRect({ -300.f, 0.f }, { 1500.f, 900.f }));   // left panel ke liye 300px extra
+    window.setView(gameView);
 
     // maze background
     sf::Texture BackGround("maze.bmp");
@@ -382,6 +723,14 @@ int main()
     sf::Sprite SideScreen(Game_Banner);
     SideScreen.setPosition({ 900,0 });
     SideScreen.setScale({ 300.f / Game_Banner.getSize().x, 900.f / Game_Banner.getSize().y });
+    // abdullahameer added achievement board here
+    sf::Sprite LeftScreen(Game_Banner);
+    LeftScreen.setPosition({ -300.f, 0.f });
+    LeftScreen.setScale({ 300.f / Game_Banner.getSize().x, 900.f / Game_Banner.getSize().y });
+    sf::RectangleShape leftDark({ 300.f, 900.f });          // text saaf parhne ke liye halka andhera
+    leftDark.setPosition({ -300.f, 0.f });
+    leftDark.setFillColor(sf::Color(0, 0, 0, 170));
+    //
     sf::Text Game_Title(font, "PACMAN", 100);
     Game_Title.setFillColor(sf::Color::Yellow);
     Game_Title.setPosition({ 910, 200 });
@@ -526,6 +875,63 @@ int main()
 
     // this makes sure that holding esc dosent make pause screen flicker
     window.setKeyRepeatEnabled(false);
+    //abdullahameer coded here
+        // ===== PLAYER NAME SCREEN (Abdullah Ameer) =====
+    std::string playerName = "";
+    bool nameEntered = false;
+
+    sf::Text nameTitle(font, "ENTER YOUR NAME", 70);
+    nameTitle.setFillColor(sf::Color::Yellow);
+    nameTitle.setPosition({ 250.f, 280.f });
+    sf::Text nameText(font, "", 60);
+    nameText.setFillColor(sf::Color::White);
+    nameText.setPosition({ 250.f, 400.f });
+    sf::Text nameHint(font, "Type name and press Enter", 30);
+    nameHint.setFillColor(sf::Color(180, 180, 180));
+    nameHint.setPosition({ 250.f, 520.f });
+
+    while (window.isOpen() && !nameEntered)
+    {
+        while (const std::optional event = window.pollEvent())
+        {
+            if (event->is<sf::Event::Closed>())
+                window.close();
+
+            if (const auto* te = event->getIf<sf::Event::TextEntered>())
+            {
+                char c = (te->unicode < 128) ? static_cast<char>(te->unicode) : 0;
+                if (te->unicode == 8)
+                {
+                    if (!playerName.empty()) playerName.pop_back();
+                }
+                else if (playerName.size() < 10 &&
+                    ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')))
+                {
+                    playerName += c;
+                }
+            }
+
+            if (const auto* ke = event->getIf<sf::Event::KeyPressed>())
+            {
+                if (ke->code == sf::Keyboard::Key::Enter && !playerName.empty())
+                    nameEntered = true;
+            }
+        }
+
+        nameText.setString(playerName + "_");
+        window.clear();
+        window.draw(nameTitle);
+        window.draw(nameText);
+        window.draw(nameHint);
+        window.display();
+    }
+
+    if (playerName.empty()) playerName = "PLAYER";
+    achLoad(playerName);
+    lbLoad();
+    lbUpdate(achPlayer, achCount());
+    clock.restart();
+    // ===== END OF PLAYER NAME SCREEN =====
 
     while (window.isOpen())
     {
@@ -580,6 +986,8 @@ int main()
                 int mult = frenzyOn ? 5 : 1;      // points multiplier
                 // editimg by abd
                 orbsUpdate(dt);
+                //abd
+                achUpdate(dt);
                 if (levelBanner > 0)
                     levelBanner -= dt;
 
@@ -680,6 +1088,7 @@ int main()
                 }
                 // orbits  and levels speed added by abdullahameer
                 Player1.score += orbsPickup(pos) * mult;
+                achCheckScore(Player1.score);
 
                 // ===== PELLET RESPAWN + EXIT GATE (5.6) =====
                 // Done by MUHAMMAD KHIZAR REHMAN
@@ -700,6 +1109,10 @@ int main()
                 if (got >= tot && qx * qx + qy * qy < 18.f * 18.f)
                 {
                     level++;
+                    // edited by abd
+                    achLevelCleared(run_time - levelStartTime);
+                    levelStartTime = run_time;
+                    //done
                     levelSpeed *= 1.10f;                        // ghosts aur Pacman dono tez
                     if (ghostCount < MAX_GHOSTS)
                         ghostCount++;  // 1 ghost zyada
@@ -967,6 +1380,8 @@ int main()
                             // kill-ghost orb: the ghost dies until the next level (a boss ghost can't die)
                             Player1.score += 200 * mult;
                             gh[i]->alive = false;
+                            // abd write this line to eat foods
+                            achGhostEaten();
                         }
                         else if (!orbInvincible())
                         {
@@ -1171,6 +1586,9 @@ int main()
             // abdullahameer code here
 
             orbsDraw(window, run_time);
+            window.draw(LeftScreen);
+            achDraw(window, font);
+            lbDraw(window, font);
 
             if (frenzyOn)
             {
@@ -1229,7 +1647,10 @@ int main()
                 clock.restart();
                 direction = ' ';
                 wanted = ' ';
-                run_time = 0;                           // new run starts from zero (leaderboard code by hmza)
+                run_time = 0;
+                // new run starts from zero (leaderboard code by hmza)
+                // edit by abd
+                levelStartTime = 0;
                 score_saved = false;
                 frenzyOn = false;      // frenzy resets on restart (hmza)
                 frenzyWait = 0;
