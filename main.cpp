@@ -499,6 +499,19 @@ int main()
     grp.setOrigin({ grape_tex.getSize().x / 2.f, grape_tex.getSize().y / 2.f });    // position = middle of the grape
     grp.setPosition({ 450.f, 306.f });          // square just outside the ghost house door
 
+    // ===== SPECIAL BONUS ORB SETUP (5.2) =====
+    // Done by MUHAMMAD KHIZAR REHMAN
+    int br = 8, bc = 11;       // bonus orb tile: just outside the ghost house door, right next to the grape
+    bool bo = true;            // is the bonus orb on the map right now?
+    float bw = 0;              // seconds passed since the bonus orb was eaten
+    float bsp = 120;           // it comes back 120 sec (2 min) after it was eaten
+    sf::CircleShape bsh(12.f);
+    bsh.setFillColor(sf::Color(255, 120, 0));        // orange
+    bsh.setOutlineThickness(2.f);
+    bsh.setOutlineColor(sf::Color::White);
+    bsh.setOrigin({ 12.f, 12.f });                   // position = middle of the orb
+    bsh.setPosition({ (bc + 0.5f) * CELL, (br + 0.5f) * CELL });
+
     // edit by abd
     for (int i = 0; i < 8; i++)
     {
@@ -705,6 +718,9 @@ int main()
                     for (int k = 0; k < COLS * ROWS; k++)
                         rs[k] = 0;
 
+                    bo = true;                                  // Done by MUHAMMAD KHIZAR REHMAN: bonus orb is back on a new level
+                    bw = 0;
+
                     for (int i = 0; i < 8; i++)                 // sab ghosts zinda aur normal
                     {
                         gh[i]->alive = true;
@@ -823,6 +839,10 @@ int main()
                     if (inH)
                     {
                         tr = 8; tc = 12;                   // head for the house door
+                    }
+                    else if (gh[i]->isBoss)
+                    {
+                        tr = pr; tc = pc;                  // boss always chases pac-man
                     }
                     else if (scat)
                     {
@@ -981,6 +1001,29 @@ int main()
                         gv = false;                          // grape disappears
                     }
                 }
+
+                // ===== SPECIAL BONUS ORB (5.2) =====
+                // Done by MUHAMMAD KHIZAR REHMAN
+                if (!bo)
+                {
+                    bw += dt;               // count the seconds since it was eaten
+                    if (bw >= bsp)          // 2 minutes passed
+                    {
+                        bo = true;          // the orb is back
+                        bw = 0;
+                    }
+                }
+                else
+                {
+                    float ox = pos.x - (bc + 0.5f) * CELL;
+                    float oy = pos.y - (br + 0.5f) * CELL;
+                    if (ox * ox + oy * oy < 18.f * 18.f)     // pac-man touches the orb
+                    {
+                        Player1.score += 1000 * mult;        // 1000 bonus points
+                        bo = false;                          // the orb disappears
+                        bw = 0;                              // the 2 minute countdown starts
+                    }
+                }
                 // ===== END OF GHOST MOVEMENT =====
 
                 // 3. DRAW
@@ -1122,6 +1165,9 @@ int main()
             if (gv)
                 window.draw(grp);
 
+            if (bo)
+                window.draw(bsh);   // Done by MUHAMMAD KHIZAR REHMAN: special bonus orb (5.2)
+
             // abdullahameer code here
 
             orbsDraw(window, run_time);
@@ -1197,6 +1243,8 @@ int main()
                     rs[k] = 0;
                 gv = false;
                 gtm = 0;
+                bo = true;             // Done by MUHAMMAD KHIZAR REHMAN: bonus orb starts fresh
+                bw = 0;
 
                 // ===== LEVEL aur GHOSTS reset (abdullahameer) =====
                 level = 1;
