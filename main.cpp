@@ -4,9 +4,10 @@
 #include <algorithm>
 #include <fstream>
 #include <string>
-# include<optional> // Abd
+#include <optional> // Abd
 #include <iostream>
 #include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
+
 struct Player
 {
     sf::Sprite sprite;
@@ -17,6 +18,7 @@ struct Player
 
     Player(const sf::Texture& tex) : sprite(tex) {}
 };
+
 struct Ghost
 {
     sf::Sprite sprite;
@@ -1041,10 +1043,7 @@ int main()
             std::cerr << "Could not load " << laneSoundFiles[i]
             << ". Check the file and its path.\n";
 
-    // Game-over/death playlist. The existing death sound remains first,
-    // followed by the two new sounds, then the playlist repeats:
-    // ghost3.mp3.mpeg -> cid-acp-pradhuman-fasi.mp3
-    // -> cid-ke-bakchodi.mp3 -> repeat.
+    
     sf::SoundBuffer deathSoundBuffer0;
     sf::SoundBuffer deathSoundBuffer1;
     sf::SoundBuffer deathSoundBuffer2;
@@ -1597,14 +1596,8 @@ int main()
                         continue;                               // Done by MUHAMMAD KHIZAR REHMAN: dead ghosts can't touch
                     sf::Vector2f q = gh[i]->sprite.getPosition();
                     float ux = q.x - pos.x, uy = q.y - pos.y;
-                    //if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
-                    //{
-                    //    Player1.lives--;                         // lose one life
-                    //    Player1.sprite.setPosition({ 54, 846 }); // pac-man goes back to start
-                    //    direction = ' ';
-                    //    rst = true;                              // ghosts go back to the house
-                    //    break;                                   // only one life per hit
-                    //}
+                    
+
                     // Edited by abdullahameer for orbit speed
                     if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
                     {
@@ -1890,12 +1883,7 @@ int main()
             window.draw(paused_text_additional);
         }
 
-        /* window.draw(Blinky.sprite);
-         window.draw(blue.sprite);
-         window.draw(Yellow.sprite);
-         window.draw(Pinky.sprite);*/
-
-         // edit by abd
+        
         for (int i = 0; i < ghostCount; i++)
             if (gh[i]->alive) window.draw(gh[i]->sprite);
 
