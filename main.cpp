@@ -231,7 +231,7 @@ void achUnlock(int i)
     achPopupText = std::string("UNLOCKED: ") + achName[i];
     achPopupTimer = 3.f;
     achSave();
-    lbUpdate(achPlayer, achCount());
+    lbUpdate(achPlayer, 0);
 }
 
 void achCheckScore(int score)
@@ -284,14 +284,26 @@ void achDrawOld(sf::RenderWindow& window, const sf::Font& font)
         window.draw(pop);
     }
 }
-
 std::string lbName[LB_MAX];
-int lbLevels[LB_MAX];
+int lbLevels[LB_MAX];   // levels cleared (0..LEVEL_TOTAL)
+int lbAch[LB_MAX];      // achievements unlocked (0..ACH_COUNT)
 int lbCount = 0;
+
+int lbTotal(int i) { return lbLevels[i] + lbAch[i]; }
+
+// counts unlocked achievements from a player's own file
+int achCountOf(const std::string& name)
+{
+    std::ifstream a("ach_" + name + ".txt");
+    int c = 0, v = 0;
+    for (int i = 0; i < ACH_COUNT && (a >> v); i++)
+        if (v == 1) c++;
+    return c;
+}
 
 void lbSave()
 {
-    std::ofstream f("top_players.txt");
+    std::ofstream f("top_progress.txt");
     for (int i = 0; i < lbCount; i++)
         f << lbName[i] << " " << lbLevels[i] << "\n";
 }
@@ -302,44 +314,45 @@ void lbSort()
     {
         for (int j = 0; j < lbCount - 1 - i; j++)
         {
-            if (lbLevels[j] < lbLevels[j + 1])
+            bool swapNow = lbTotal(j) < lbTotal(j + 1) ||
+                (lbTotal(j) == lbTotal(j + 1) && lbAch[j] < lbAch[j + 1]);
+            if (swapNow)
             {
+                std::string s = lbName[j];
+                lbName[j] = lbName[j + 1];
+                lbName[j + 1] = s;
+
                 int t = lbLevels[j];
                 lbLevels[j] = lbLevels[j + 1];
                 lbLevels[j + 1] = t;
 
-                std::string s = lbName[j];
-                lbName[j] = lbName[j + 1];
-                lbName[j + 1] = s;
+                t = lbAch[j];
+                lbAch[j] = lbAch[j + 1];
+                lbAch[j + 1] = t;
             }
         }
     }
 }
-// edit by abd
+
 void lbLoad()
 {
     lbCount = 0;
-    std::ifstream f("top_players.txt");
+    std::ifstream f("top_progress.txt");
     while (lbCount < LB_MAX && f >> lbName[lbCount] >> lbLevels[lbCount])
         lbCount++;
 
     for (int i = 0; i < lbCount; i++)
     {
-        std::ifstream a("ach_" + lbName[i] + ".txt");
-        if (!a) continue;
-        int c = 0, v = 0;
-        while (c < ACH_COUNT && a >> v)
-        {
-            if (v == 1) c++;
-        }
-        lbLevels[i] = c;
+        if (lbLevels[i] > LEVEL_TOTAL) lbLevels[i] = LEVEL_TOTAL;
+        lbAch[i] = achCountOf(lbName[i]);
     }
     lbSort();
 }
+
 void lbUpdate(const std::string& name, int levels)
 {
-    if (levels > ACH_COUNT)
-        levels = ACH_COUNT;
+    if (levels > LEVEL_TOTAL)
+        levels = LEVEL_TOTAL;
 
     int idx = -1;
     for (int i = 0; i < lbCount; i++)
@@ -350,10 +363,11 @@ void lbUpdate(const std::string& name, int levels)
         if (lbCount >= LB_MAX) return;
         idx = lbCount++;
         lbName[idx] = name;
-        lbLevels[idx] = levels;
+        lbLevels[idx] = 0;
     }
-    else if (levels > lbLevels[idx])
+    if (levels > lbLevels[idx])
         lbLevels[idx] = levels;
+    lbAch[idx] = achCountOf(name);
 
     lbSort();
     lbSave();
@@ -416,9 +430,11 @@ void panelLine(sf::RenderWindow& w, float x, float y, float width)
     w.draw(r);
 }
 
+
 void lbDraw(sf::RenderWindow& window, const sf::Font& font)
 {
     const float px = -290.f, pw = 280.f, top = 40.f;
+    const int MAXPTS = LEVEL_TOTAL + ACH_COUNT;
     sf::Color medal[3] = { sf::Color(255, 215, 0), sf::Color(200, 200, 215), sf::Color(205, 127, 50) };
 
     panelBox(window, px, top, pw, 200.f);
@@ -444,18 +460,21 @@ void lbDraw(sf::RenderWindow& window, const sf::Font& font)
 
         panelText(window, font, lbName[i], 22, i == 0 ? sf::Color(255, 215, 0) : sf::Color::White, px + 48.f, ry);
 
-        for (int s = 0; s < ACH_COUNT; s++)
+        for (int s = 0; s < MAXPTS; s++)
         {
-            sf::RectangleShape seg({ 18.f, 8.f });
-            seg.setPosition({ px + 48.f + s * 22.f, ry + 30.f });
-            seg.setFillColor(s < lbLevels[i] ? medal[i] : sf::Color(70, 70, 70));
+            sf::RectangleShape seg({ 13.f, 8.f });
+            seg.setPosition({ px + 48.f + s * 16.f, ry + 30.f });
+            seg.setFillColor(s < lbTotal(i) ? medal[i] : sf::Color(70, 70, 70));
             window.draw(seg);
         }
 
-        panelText(window, font, std::to_string(lbLevels[i]) + "/" + std::to_string(ACH_COUNT),
-            20, sf::Color::White, px + pw - 52.f, ry + 4.f);
+        panelText(window, font, std::to_string(lbTotal(i)) + "/" + std::to_string(MAXPTS),
+            20, sf::Color::White, px + pw - 64.f, ry + 2.f);
+        panelText(window, font, "L" + std::to_string(lbLevels[i]) + " A" + std::to_string(lbAch[i]),
+            14, sf::Color(200, 200, 200), px + pw - 62.f, ry + 26.f);
     }
 }
+
 
 void achDraw(sf::RenderWindow& window, const sf::Font& font)
 {
@@ -929,7 +948,7 @@ int main()
     if (playerName.empty()) playerName = "PLAYER";
     achLoad(playerName);
     lbLoad();
-    lbUpdate(achPlayer, achCount());
+    lbUpdate(achPlayer, 0);
     clock.restart();
     // ===== END OF PLAYER NAME SCREEN =====
 
@@ -1112,6 +1131,7 @@ int main()
                     // edited by abd
                     achLevelCleared(run_time - levelStartTime);
                     levelStartTime = run_time;
+                    lbUpdate(achPlayer, level - 1);   // levels cleared so far
                     //done
                     levelSpeed *= 1.10f;                        // ghosts aur Pacman dono tez
                     if (ghostCount < MAX_GHOSTS)
@@ -1662,7 +1682,6 @@ int main()
                 got = 0;
                 for (int k = 0; k < COLS * ROWS; k++)
                     rs[k] = 0;
-                gv = false;
                 gtm = 0;
                 bo = true;             // Done by MUHAMMAD KHIZAR REHMAN: bonus orb starts fresh
                 bw = 0;
