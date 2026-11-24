@@ -7,6 +7,8 @@
 #include <optional> // Abd
 #include <iostream>
 #include <cmath>   // Done by MUHAMMAD KHIZAR REHMAN
+#include <cstdlib> // rand / srand (random ghost decisions, random orb spawning)
+#include <ctime>   // time stamps on leaderboard runs, seed for rand
 
 struct Player
 {
@@ -70,6 +72,8 @@ int maze[COLS * ROWS] = {
 // ===== ORB CODE (5.1 Multiple Power-Up Orbs) =====
 const int   ORB_COUNT = 4;
 const int   ORB_TILE = 36;
+const int  orbHomeRow[ORB_COUNT] = { 1, 1, 13, 23 };   // where each orb starts every level
+const int  orbHomeCol[ORB_COUNT] = { 1, 23, 12, 23 };
 int  orbRow[ORB_COUNT] = { 1, 1, 13, 23 };
 int  orbCol[ORB_COUNT] = { 1, 23, 12, 23 };
 int  orbType[ORB_COUNT] = { 1, 2, 3, 1 };    // 1 = speed, 2 = invincible, 3 = kill-ghost
@@ -98,6 +102,37 @@ sf::Color orbColor(int type)
     return sf::Color(255, 40, 40);
 }
 
+// random orb spawning: moves orb o to a random open tile (not in the ghost house,
+// not on the gates, bonus orb, grape or another orb)
+void orbRandomTile(int o)
+{
+    for (int tries = 0; tries < 200; tries++)
+    {
+        int r = std::rand() % ROWS;
+        int c = std::rand() % COLS;
+
+        if (maze[r * COLS + c] != 0 && maze[r * COLS + c] != 2)
+            continue;                                   // wall or tunnel edge
+        if (r >= 9 && r <= 12 && c >= 10 && c <= 14)
+            continue;                                   // ghost house
+        if (r == 8 && (c == 11 || c == 12))
+            continue;                                   // bonus orb + grape tiles
+        if ((r == 23 && c == 1) || (r == 1 && c == 23))
+            continue;                                   // entry / exit gate
+
+        bool taken = false;
+        for (int k = 0; k < ORB_COUNT; k++)
+            if (k != o && orbOn[k] && orbRow[k] == r && orbCol[k] == c)
+                taken = true;
+        if (taken)
+            continue;
+
+        orbRow[o] = r;
+        orbCol[o] = c;
+        return;
+    }
+}
+
 void orbsUpdate(float dt)
 {
     if (speedTimer > 0)
@@ -107,7 +142,8 @@ void orbsUpdate(float dt)
     if (killTimer > 0)
         killTimer = std::max(0.f, killTimer - dt);
 
-    // Each collected power-up orb respawns 60 seconds after it was collected.
+    // Each collected power-up orb respawns 60 seconds after it was collected,
+    // on a random tile.
     for (int o = 0; o < ORB_COUNT; o++)
     {
         if (!orbOn[o] && orbRespawnTimer[o] > 0.f)
@@ -116,6 +152,7 @@ void orbsUpdate(float dt)
             if (orbRespawnTimer[o] <= 0.f)
             {
                 orbRespawnTimer[o] = 0.f;
+                orbRandomTile(o);
                 orbOn[o] = true;
             }
         }
@@ -166,6 +203,8 @@ void orbsReset(bool respawnOrbs)
         {
             orbOn[o] = true;
             orbRespawnTimer[o] = 0.f;
+            orbRow[o] = orbHomeRow[o];      // back to the starting tile
+            orbCol[o] = orbHomeCol[o];
         }
     }
 }
@@ -649,24 +688,47 @@ bool ghostSharesClearLane(sf::Vector2f pacmanPos, sf::Vector2f ghostPos)
 }
 //leaderboard code by hmza:
 
-int topScores[6];      // 5 best scores + 1 spare slot
-int topTimes[6];       // seconds each run lasted
-int savedCount = 0;    // how many scores we have right now
+std::string topNames[6];    // player name of each run
+int topScores[6];           // 5 best scores + 1 spare slot
+int topTimes[6];            // seconds each run lasted
+std::time_t topStamps[6];   // when each run ended (unix time)
+int savedCount = 0;         // how many scores we have right now
 
-// read the file when the game starts
+// turns a unix time into text like "24/11 14:30"
+std::string formatStamp(std::time_t t)
+{
+    std::tm tmv = {};
+#ifdef _WIN32
+    localtime_s(&tmv, &t);
+#else
+    localtime_r(&t, &tmv);
+#endif
+    char buf[32];
+    std::strftime(buf, sizeof(buf), "%d/%m %H:%M", &tmv);
+    return std::string(buf);
+}
+
+// read the file when the game starts (new file: it also stores name + time stamp)
 void loadScores()
 {
-    std::ifstream file("leaderboard.txt");
+    std::ifstream file("leaderboard_v2.txt");
     savedCount = 0;
-    while (savedCount < 5 && file >> topScores[savedCount] >> topTimes[savedCount])
+    long long stamp = 0;
+    while (savedCount < 5 && file >> topNames[savedCount] >> topScores[savedCount]
+        >> topTimes[savedCount] >> stamp)
+    {
+        topStamps[savedCount] = static_cast<std::time_t>(stamp);
         savedCount++;
+    }
 }
 
 // add a new score, sort, keep 5, save
-void addScore(int score, int seconds)
+void addScore(const std::string& name, int score, int seconds)
 {
-    topScores[savedCount] = score;       // put the new one at the end
+    topNames[savedCount] = name;         // put the new one at the end
+    topScores[savedCount] = score;
     topTimes[savedCount] = seconds;
+    topStamps[savedCount] = std::time(nullptr);   // time stamp of this run
     savedCount++;
 
     // sort: biggest score first (bubble sort)
@@ -683,6 +745,14 @@ void addScore(int score, int seconds)
                 temp = topTimes[j];
                 topTimes[j] = topTimes[j + 1];
                 topTimes[j + 1] = temp;
+
+                std::string tn = topNames[j];
+                topNames[j] = topNames[j + 1];
+                topNames[j + 1] = tn;
+
+                std::time_t ts = topStamps[j];
+                topStamps[j] = topStamps[j + 1];
+                topStamps[j + 1] = ts;
             }
         }
     }
@@ -691,9 +761,10 @@ void addScore(int score, int seconds)
         savedCount = 5;                  // forget the 6th
 
     // save to the file
-    std::ofstream file("leaderboard.txt");
+    std::ofstream file("leaderboard_v2.txt");
     for (int i = 0; i < savedCount; i++)
-        file << topScores[i] << " " << topTimes[i] << "\n";
+        file << topNames[i] << " " << topScores[i] << " " << topTimes[i] << " "
+        << static_cast<long long>(topStamps[i]) << "\n";
 }
 
 // show the list on the screen
@@ -705,14 +776,20 @@ void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
     title.setPosition({ 600.f, 460.f });
     window.draw(title);
 
+    // one row of text: rank, player name, score, run time, date + time of the run
+    auto makeLine = [&](int i)
+        {
+            return std::to_string(i + 1) + ".  " + topNames[i] + "  " +
+                std::to_string(topScores[i]) + " pts  " +
+                std::to_string(topTimes[i]) + " sec  " +
+                formatStamp(topStamps[i]);
+        };
+
     // find the widest row so the whole list is centred as one block
     float maxW = 0.f;
     for (int i = 0; i < savedCount; i++)
     {
-        std::string line = std::to_string(i + 1) + ".  " +
-            std::to_string(topScores[i]) + " pts   " +
-            std::to_string(topTimes[i]) + " sec";
-        sf::Text row(font, line, 30);
+        sf::Text row(font, makeLine(i), 26);
         float w = row.getLocalBounds().size.x;
         if (w > maxW)
             maxW = w;
@@ -720,10 +797,7 @@ void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
 
     for (int i = 0; i < savedCount; i++)
     {
-        std::string line = std::to_string(i + 1) + ".  " +
-            std::to_string(topScores[i]) + " pts   " +
-            std::to_string(topTimes[i]) + " sec";
-        sf::Text row(font, line, 30);
+        sf::Text row(font, makeLine(i), 26);
         row.setPosition({ 600.f - maxW / 2.f, 520.f + i * 40.f });
         window.draw(row);
     }
@@ -731,6 +805,9 @@ void drawLeaderboard(sf::RenderWindow& window, sf::Font& font)
 
 int main()
 {
+    // seed the random numbers (ghost decisions, orb spawning)
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
+
     // window
     sf::RenderWindow window(sf::VideoMode({ 1500, 900 }), "Pac Man Game");
     window.setFramerateLimit(60);
@@ -1043,7 +1120,7 @@ int main()
             std::cerr << "Could not load " << laneSoundFiles[i]
             << ". Check the file and its path.\n";
 
-    
+
     sf::SoundBuffer deathSoundBuffer0;
     sf::SoundBuffer deathSoundBuffer1;
     sf::SoundBuffer deathSoundBuffer2;
@@ -1528,7 +1605,9 @@ int main()
                     }
 
                     // 2) of the 4 ways, pick the one that ends closest to the target
+                    //    (random: ties are broken randomly)
                     int best = -1, bd = 999999;
+                    int validDir[4], validCount = 0;
                     for (int k = 0; k < 4; k++)
                     {
                         if (dR[k] == -vr[i] && dC[k] == -vc[i])
@@ -1540,13 +1619,19 @@ int main()
                             continue;                                   // wall (or tunnel edge)
                         if (!inH && r2 >= 9 && r2 <= 11 && c2 >= 11 && c2 <= 13)
                             continue;                                   // can't go back in the house
+                        validDir[validCount++] = k;
                         int d = (r2 - tr) * (r2 - tr) + (c2 - tc) * (c2 - tc);
-                        if (d < bd)
+                        if (d < bd || (d == bd && std::rand() % 2 == 0))
                         {
                             bd = d;
                             best = k;
                         }
                     }
+
+                    // random ghost decision: 8% of the time a normal ghost (not the boss,
+                    // not leaving the house) takes a random open way at a junction
+                    if (validCount > 1 && !inH && !gh[i]->isBoss && std::rand() % 100 < 8)
+                        best = validDir[std::rand() % validCount];
 
                     if (best == -1)              // dead end: the only time it may turn back
                     {
@@ -1596,7 +1681,7 @@ int main()
                         continue;                               // Done by MUHAMMAD KHIZAR REHMAN: dead ghosts can't touch
                     sf::Vector2f q = gh[i]->sprite.getPosition();
                     float ux = q.x - pos.x, uy = q.y - pos.y;
-                    
+
 
                     // Edited by abdullahameer for orbit speed
                     if (ux * ux + uy * uy < 22.f * 22.f)        // ghost is touching pac-man
@@ -1883,7 +1968,7 @@ int main()
             window.draw(paused_text_additional);
         }
 
-        
+
         for (int i = 0; i < ghostCount; i++)
             if (gh[i]->alive) window.draw(gh[i]->sprite);
 
@@ -1901,14 +1986,14 @@ int main()
             // save the score if not already done (leaderboard code by hmza):
             if (!score_saved)
             {
-                addScore(Player1.score, int(run_time));
+                addScore(playerName, Player1.score, int(run_time));
                 score_saved = true;
             }
 
             window.draw(game_over_screen);
             window.draw(game_over_text);
             window.draw(game_over_text_additional);
-            drawLeaderboard(window, font);              // shows the top 5 list (leaderboard code by hmza)
+            drawLeaderboard(window, font);              // shows the top 5 list with names (leaderboard code by hmza)
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space))
             {
                 Player1.lives = 1;
@@ -1933,6 +2018,7 @@ int main()
                 got = 0;
                 for (int k = 0; k < COLS * ROWS; k++)
                     rs[k] = 0;
+                gv = false;
                 gtm = 0;
                 bo = true;             // Done by MUHAMMAD KHIZAR REHMAN: bonus orb starts fresh
                 bw = 0;
