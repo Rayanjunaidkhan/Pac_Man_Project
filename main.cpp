@@ -32,6 +32,7 @@ struct Ghost
     Ghost(const sf::Texture& tex) : sprite(tex) {}
 };
 
+// these are function prototypes
 
 void place_dots();
 void drawWallLayer(sf::RenderWindow& window, float thickness, sf::Color color, sf::RenderStates states);
@@ -41,6 +42,8 @@ const int CELL = 36;   // size of one square, in pixels
 const int COLS = 25;   // how many squares across
 const int ROWS = 25;   // how many squares down
 
+
+// 0 for path with point, 1 for wall, -1 for path without point
 int maze[COLS * ROWS] = {
 1,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1, // row 0
 1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 1
@@ -68,6 +71,7 @@ int maze[COLS * ROWS] = {
 1,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,1, // row 23
 1,1,1,1,1,1,1,1,1,1,1,-1,-1,-1,1,1,1,1,1,1,1,1,1,1,1  // row 24
 };
+
 // This is abdullah ameer code for making orbits and speeding process
 // ===== ORB CODE (5.1 Multiple Power-Up Orbs) =====
 const int   ORB_COUNT = 4;
@@ -104,6 +108,9 @@ sf::Color orbColor(int type)
 
 // random orb spawning: moves orb o to a random open tile (not in the ghost house,
 // not on the gates, bonus orb, grape or another orb)
+
+
+// this one used to pick a random open path
 void orbRandomTile(int o)
 {
     for (int tries = 0; tries < 200; tries++)
@@ -158,10 +165,12 @@ void orbsUpdate(float dt)
         }
     }
 }
+// used for functionality of increasing orb speed 
 float orbSpeedMultiplier()
 {
     return (speedTimer > 0 ? SPEED_BOOST : 1.f) * levelSpeed;
 }
+
 bool  orbInvincible()
 {
     return invTimer > 0;
@@ -171,6 +180,8 @@ bool  orbKillActive()
     return killTimer > 0;
 }
 
+
+// calculates distance between pac man and orb and if less than 18 then treats as picked by hiding and starting its timer
 int orbsPickup(sf::Vector2f pos)
 {
     int bonus = 0;
@@ -192,6 +203,7 @@ int orbsPickup(sf::Vector2f pos)
     return bonus;
 }
 
+// resets an orb
 void orbsReset(bool respawnOrbs)
 {
     speedTimer = 0;
@@ -209,6 +221,8 @@ void orbsReset(bool respawnOrbs)
     }
 }
 
+
+// draws an orb on window
 void orbsDraw(sf::RenderWindow& window, float t)
 {
     sf::CircleShape shape;
@@ -237,11 +251,15 @@ void orbsDrawHud(sf::RenderWindow& window, const sf::Font& font)
         s += "KILL: " + std::to_string(int(killTimer) + 1) + "\n";
     if (s.empty()) return;
     sf::Text text(font, s, 30);
-    text.setFillColor(sf::Color::White);
+    text.setFillColor(sf::Color::Red);
     text.setPosition({ 930.f, 430.f });
     window.draw(text);
 }
 // ===== END OF ORB CODE =====
+// 
+// 
+// 
+// 
 // abdillahameer added achievement board
 // ===== ACHIEVEMENTS + TOP 3 PLAYERS (Abdullah Ameer) =====
 const int   ACH_COUNT = 5;
@@ -455,10 +473,13 @@ void lbDrawOld(sf::RenderWindow& window, const sf::Font& font)
         window.draw(t);
     }
 }
+
+
+
+
 // better presentable form by abdullahameer
 // ===== PRETTY BOARDS (presentable look) =====
-void panelText(sf::RenderWindow& w, const sf::Font& font, const std::string& s,
-    unsigned int size, sf::Color col, float x, float y)
+void panelText(sf::RenderWindow& w, const sf::Font& font, const std::string& s, unsigned int size, sf::Color col, float x, float y)
 {
     sf::Text t(font, s, size);
     t.setFillColor(col);
@@ -466,8 +487,7 @@ void panelText(sf::RenderWindow& w, const sf::Font& font, const std::string& s,
     w.draw(t);
 }
 
-void panelTextCentered(sf::RenderWindow& w, const sf::Font& font, const std::string& s,
-    unsigned int size, sf::Color col, float cx, float y)
+void panelTextCentered(sf::RenderWindow& w, const sf::Font& font, const std::string& s, unsigned int size, sf::Color col, float cx, float y)
 {
     sf::Text t(font, s, size);
     t.setFillColor(col);
